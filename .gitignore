@@ -1,0 +1,67 @@
+# Python caches and build output
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Node / Vite frontend
+node_modules/
+dist-ssr/
+.vite/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment files and local secrets
+.env
+.env.*
+!.env.example
+!.env.template
+*.local
+backend/config.yaml
+
+# Runtime data, databases, and generated scan output
+data/
+backend/data/
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.sqlite-journal
+logs/
+*.log
+reports/
+exports/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor and IDE files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

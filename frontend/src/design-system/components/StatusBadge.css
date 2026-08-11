@@ -1,0 +1,36 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.badge-danger {
+  color: var(--status-danger);
+  background: var(--status-danger-soft);
+}
+.badge-warning {
+  color: var(--status-warning);
+  background: var(--status-warning-soft);
+}
+.badge-safe {
+  color: var(--status-safe);
+  background: var(--status-safe-soft);
+}
+.badge-info {
+  color: var(--text-secondary);
+  background: var(--status-info-soft);
+}

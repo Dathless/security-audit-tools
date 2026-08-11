@@ -1,0 +1,1 @@
+from . import models  # noqa: F401  (đảm bảo bảng riêng module được đăng ký vào Base.metadata)

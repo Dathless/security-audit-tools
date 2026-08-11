@@ -1,0 +1,49 @@
+.mp-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mp-banner {
+  margin-top: -4px;
+}
+
+.mp-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.mp-title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.mp-desc {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  max-width: 560px;
+}
+
+.mp-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.mp-content {
+  display: flex;
+  flex-direction: column;
+}

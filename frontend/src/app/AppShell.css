@@ -1,0 +1,207 @@
+.app-shell {
+  display: flex;
+  min-height: 100%;
+}
+
+/* ---------- sidebar ---------- */
+.sidebar {
+  width: 232px;
+  flex-shrink: 0;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 16px 14px;
+  color: var(--text-primary);
+}
+
+.brand:hover {
+  color: var(--text-primary);
+}
+
+.brand-mark {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+  font-size: 14px;
+}
+
+.brand-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.01em;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.nav-group-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  padding: 12px 10px 4px;
+  margin: 0;
+}
+
+.nav-group-spacer {
+  margin-top: 8px;
+}
+
+.sidebar-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-soft);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.sidebar-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-idle {
+  background: var(--status-safe);
+  box-shadow: 0 0 8px rgba(46, 204, 143, 0.5);
+}
+.status-scanning {
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(61, 169, 252, 0.6);
+  animation: status-blink 1.2s ease-in-out infinite;
+}
+.status-offline {
+  background: var(--status-danger);
+}
+.status-unknown {
+  background: var(--text-muted);
+}
+
+@keyframes status-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ---------- main column ---------- */
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  background: var(--bg-base);
+  border-bottom: 1px solid var(--border-soft);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.crumb {
+  color: var(--text-muted);
+}
+
+.crumb-sep {
+  color: var(--border);
+}
+
+.crumb-current {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.app-content {
+  padding: 20px;
+  max-width: 1200px;
+  width: 100%;
+}
+
+.unknown-route {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: flex-start;
+  color: var(--text-secondary);
+}
+
+/* ---------- responsive: sidebar thu gọn thành icon-only ---------- */
+@media (max-width: 960px) {
+  .sidebar {
+    width: 60px;
+  }
+  .brand-name,
+  .nav-item-label,
+  .nav-item-soon,
+  .nav-group-label,
+  .sidebar-status-text {
+    display: none;
+  }
+  .sidebar-footer {
+    justify-content: center;
+    padding: 12px 0;
+  }
+  .brand {
+    justify-content: center;
+    padding: 16px 0 14px;
+  }
+  .nav {
+    padding: 8px 8px;
+  }
+  .nav-item {
+    justify-content: center;
+    padding: 8px;
+  }
+  .nav-item-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    min-width: 15px;
+    height: 15px;
+    font-size: 9px;
+  }
+}

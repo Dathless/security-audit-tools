@@ -1,0 +1,130 @@
+/* ============================================================
+   DESIGN TOKENS — Security Audit Tool
+   Nguồn duy nhất của màu/type/radius. Module KHÔNG được định
+   nghĩa màu riêng, chỉ dùng token ở đây.
+   ============================================================ */
+
+:root {
+  /* surfaces */
+  --bg-base: #0b0e14;
+  --bg-surface: #121722;
+  --bg-elevated: #1a2130;
+  --border: #242c3d;
+  --border-soft: #1c2332;
+
+  /* text */
+  --text-primary: #e7eaf2;
+  --text-secondary: #8b93a7;
+  --text-muted: #525b71;
+
+  /* brand accent — dùng cho UI (button chính, link, nav active, focus ring).
+     KHÔNG dùng để biểu thị trạng thái bảo mật. */
+  --accent: #3da9fc;
+  --accent-strong: #1e8ee6;
+  --accent-soft: rgba(61, 169, 252, 0.12);
+  --accent-border: rgba(61, 169, 252, 0.4);
+
+  /* status — đỏ/vàng/xanh lá = đánh giá rủi ro thật */
+  --status-danger: #ff5a5f;
+  --status-warning: #ffb020;
+  --status-safe: #2ecc8f;
+  --status-info: #8b93a7;
+  --status-danger-soft: rgba(255, 90, 95, 0.12);
+  --status-warning-soft: rgba(255, 176, 32, 0.12);
+  --status-safe-soft: rgba(46, 204, 143, 0.12);
+  --status-info-soft: rgba(139, 147, 167, 0.12);
+
+  /* radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  /* typography */
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas,
+    monospace;
+
+  color-scheme: dark;
+}
+
+/* ---------- base ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--bg-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--accent-strong);
+}
+
+button {
+  font-family: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--text-primary);
+}
+
+/* scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 6px;
+  border: 2px solid var(--bg-base);
+}
+
+/* utility: nhiều chữ số kỹ thuật căn cột chuẩn bằng font mono */
+.u-mono {
+  font-family: var(--font-mono);
+}

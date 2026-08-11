@@ -1,0 +1,26 @@
+import type { ReactElement, ReactNode } from "react";
+import "./Panel.css";
+
+interface PanelProps {
+  title: string;
+  subtitle?: string;
+  actions?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}
+
+/** Khối nội dung bo góc lớn: title + subtitle + slot nội dung. */
+export function Panel({ title, subtitle, actions, children, className = "" }: PanelProps): ReactElement {
+  return (
+    <section className={`panel ${className}`}>
+      <header className="panel-head">
+        <div className="panel-title-group">
+          <h3 className="panel-title">{title}</h3>
+          {subtitle ? <p className="panel-subtitle">{subtitle}</p> : null}
+        </div>
+        {actions ? <div className="panel-actions">{actions}</div> : null}
+      </header>
+      <div className="panel-body">{children}</div>
+    </section>
+  );
+}

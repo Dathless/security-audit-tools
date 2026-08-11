@@ -1,0 +1,26 @@
+.row-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.row-actions-pending {
+  color: var(--text-muted);
+  padding: 0 6px;
+}
+
+.badge-new {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--status-warning);
+  background: var(--status-warning-soft);
+  border: 1px solid rgba(255, 176, 32, 0.4);
+  border-radius: 999px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+
+.text-muted {
+  color: var(--text-muted);
+}

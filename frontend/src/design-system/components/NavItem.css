@@ -1,0 +1,81 @@
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 13px;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
+  position: relative;
+}
+
+.nav-item:hover:not(.nav-item-disabled) {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.nav-item-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.nav-item-active:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.nav-item:focus-visible {
+  outline-offset: 0;
+}
+
+.nav-item-disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.nav-item-icon {
+  display: inline-flex;
+  width: 18px;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.nav-item-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-item-soon {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+
+.nav-item-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--status-danger);
+  color: #2a0508;
+  font-size: 10.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
