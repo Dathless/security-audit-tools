@@ -17,6 +17,16 @@ logger = logging.getLogger(__name__)
 
 ANY_IP = {"0.0.0.0", "::"}
 
+SERVICE_PORT_MAP: dict[int, str] = {
+    22: "SSH",
+    80: "HTTP",
+    443: "HTTPS",
+    3306: "MySQL",
+    5432: "PostgreSQL",
+    6379: "Redis",
+    27017: "MongoDB",
+}
+
 
 class PortScannerModule(ScannerBase):
     module_id = "port-scanner"
@@ -37,14 +47,14 @@ class PortScannerModule(ScannerBase):
         items: list[ScanResultItem] = []
         total = len(entries) or 1
         for idx, entry in enumerate(entries, start=1):
-            severity, note = self._classify(entry)
+            severity, reasons = self._classify(entry)
             detail = {
                 "port": entry["port"],
-                "ip": entry["ip"],
+                "listener": entry["ip"],
                 "pid": entry["pid"],
                 "process_name": entry["process_name"],
                 "protocol": entry["protocol"],
-                "note": note,
+                "reasons": reasons,
                 "permission_denied": entry["permission_denied"],
             }
             items.append(
@@ -165,15 +175,43 @@ class PortScannerModule(ScannerBase):
             return "", False
 
     # ----------------------------------------------------------------- classify
-    def _classify(self, entry: dict) -> tuple[str, str]:
+    def _classify(self, entry: dict) -> tuple[str, list[str]]:
+        """Level 1 — Core Rules evaluation.
+
+        Priority order:
+        1. Risky Port           → DANGER
+        2. Service/Port Mismatch → WARNING
+        3. Listener Scope        → WARNING
+        4. Process Identification → WARNING
+        5. SAFE
+        """
+        reasons: list[str] = []
         port = entry["port"]
+
+        # Rule 4.1 — Risky Port
         if port in self.known_risky_ports:
-            return "danger", "Nằm trong danh sách cổng rủi ro đã biết"
+            reasons.append("PORT_IN_RISKY_LIST")
+            return "danger", reasons
+
+        # Rule 4.4 — Port / Process Mismatch
+        expected = SERVICE_PORT_MAP.get(port)
+        if expected and entry["process_name"]:
+            process_lower = entry["process_name"].lower()
+            if expected.lower() not in process_lower:
+                reasons.append("SERVICE_PORT_MISMATCH")
+                return "warning", reasons
+
+        # Rule 4.2 — Listener Scope
         if entry["ip"] in ANY_IP:
-            return "warning", "Đang lắng nghe trên mọi giao diện (0.0.0.0/::)"
+            reasons.append("LISTENING_ON_ALL_INTERFACES")
+            return "warning", reasons
+
+        # Rule 4.3 — Process Identification
         if entry["permission_denied"]:
-            return "warning", "Cần quyền Administrator để lấy tên tiến trình"
-        return "safe", "Port mở thông thường (loopback/nội bộ)"
+            reasons.append("PROCESS_IDENTIFICATION_FAILED")
+            return "warning", reasons
+
+        return "safe", reasons
 
     # ----------------------------------------------------------------- snapshot
     def _record_config(self) -> None:

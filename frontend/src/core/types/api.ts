@@ -40,11 +40,11 @@ export interface ScanListItem {
 
 export interface ScanItemDetail {
   port?: number;
-  ip?: string;
+  listener?: string;
   pid?: number | null;
   process_name?: string;
   protocol?: string;
-  note?: string;
+  reasons?: string[];
   permission_denied?: boolean;
   [key: string]: unknown;
 }

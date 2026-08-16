@@ -18,8 +18,8 @@ interface Row extends ScanItem {
   _pidText: string;
   _processText: string;
   _proto: string;
-  _ip: string;
-  _note: string;
+  _listener: string;
+  _reasons: string[];
 }
 
 /** Một dòng hiển thị = MỘT CỔNG (group các item theo port), list tiến trình kèm theo. */
@@ -29,8 +29,8 @@ interface PortRow {
   severity: Severity;
   processText: string;
   protoText: string;
-  ipText: string;
-  noteText: string;
+  listenerText: string;
+  reasonsText: string;
   isNew: boolean;
   items: Row[];
   allSafe: boolean;
@@ -44,8 +44,8 @@ function toRow(item: ScanItem): Row {
     _pidText: d.pid != null ? String(d.pid) : "—",
     _processText: d.process_name || (d.permission_denied ? "(cần admin)" : "—"),
     _proto: d.protocol || "—",
-    _ip: d.ip || "—",
-    _note: d.note || "",
+    _listener: d.listener || "—",
+    _reasons: Array.isArray(d.reasons) ? d.reasons : [],
   };
 }
 
@@ -85,8 +85,8 @@ function groupByPort(rows: Row[], severityOf: (item: ScanItem) => Severity): Por
       severity: sev,
       processText: processList.join(", ") || "—",
       protoText: uniq(items.map((r) => r._proto)).join(", ") || "—",
-      ipText: uniq(items.map((r) => r._ip)).join(", ") || "—",
-      noteText: uniq(items.map((r) => r._note)).join("; ") || "",
+      listenerText: uniq(items.map((r) => r._listener)).join(", ") || "—",
+      reasonsText: uniq(items.flatMap((r) => r._reasons)).join(", ") || "",
       isNew: items.some((r) => r.is_new),
       items,
       allSafe: items.every((r) => severityOf(r) === "safe"),
@@ -159,12 +159,13 @@ export function PortScannerPage(): ReactElement {
     { key: "port", label: "Cổng", mono: true, align: "right", sortable: true },
     { key: "processText", label: "Tiến trình (PID)", mono: true, sortable: true },
     { key: "protoText", label: "Giao thức", mono: true, sortable: true },
+    { key: "listenerText", label: "Listener", mono: true, sortable: true },
     {
       key: "isNew",
       label: "Mới",
       render: (r) => (r.isNew ? <span className="badge-new">NEW</span> : <span className="text-muted">—</span>),
     },
-    { key: "noteText", label: "Ghi chú" },
+    { key: "reasonsText", label: "Lý do" },
   ];
 
   const whitelistById = new Map(whitelist.map((w) => [w.whitelist_key, w]));
