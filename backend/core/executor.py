@@ -30,7 +30,7 @@ async def dispatch_scan(manifest: ModuleManifest) -> str:
 async def execute_scan(manifest: ModuleManifest, scan_id: str) -> None:
     """Vòng đời 1 lượt quét: chạy module → whitelist → diffing → lưu → broadcast.
 
-    Đây là nơi duy nhất bọc exception của mọi module (mục 8 BACKEND.md).
+    Đây là nơi duy nhất bọc exception của mọi module (mục 8 docs/architecture/backend.md).
     """
     module_id = manifest.id
     scanner = manifest.scanner_cls()

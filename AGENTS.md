@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-`backend/` contains the FastAPI app: `api/` defines endpoints and WebSockets, `core/` runs scans and discovers modules, `storage/` holds persistence, and `modules/` contains scanners. Backend tests live in `backend/tests/` and module-local `tests/`. `frontend/src/` contains the React app, shared `core/`, reusable `design-system/`, and feature folders under `modules/`; static assets are in `frontend/public/`. `docs/` holds design and test notes. Add a backend module through `manifest.py` and `ScannerBase`; add a frontend module through `manifest.ts` and a page. Both registries discover modules automatically.
+`backend/` contains the FastAPI app: `api/` defines endpoints and WebSockets, `core/` runs scans and discovers modules, `storage/` holds persistence, and `modules/` contains scanners. Backend tests live in `backend/tests/` and module-local `tests/`. `frontend/src/` contains the React app, shared `core/`, reusable `design-system/`, and feature folders under `modules/`; static assets are in `frontend/public/`. Start at [docs/README.md](docs/README.md) for architecture, feature plans, testing evidence, and archives. Add a backend module through `manifest.py` and `ScannerBase`; add a frontend module through `manifest.ts` and a page. Both registries discover modules automatically.
 
 ## Build, Test, and Development Commands
 

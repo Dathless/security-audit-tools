@@ -1,4 +1,4 @@
-/** Các kiểu chung khớp với backend (xem docs/BACKEND.md + mã nguồn backend). */
+/** Các kiểu chung khớp với backend (xem docs/architecture/backend.md + mã nguồn backend). */
 
 export type Severity = "safe" | "warning" | "danger";
 

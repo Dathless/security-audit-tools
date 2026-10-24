@@ -1,17 +1,24 @@
-# Current implementation note
+# Kiến trúc backend — Security Audit Tool
 
-Firewall Check v1 is implemented in `modules/firewall_check/`, using a fixed, read-only Windows PowerShell query and the existing ScannerBase/executor/storage/WebSocket pipeline. The four authenticated endpoints and JSON fields are documented in the root README and FastAPI OpenAPI descriptions. `api/scan_results.py` serializes results for both modules. Diff baselines use only completed, full snapshots. Port Scanner now uses psutil only; legacy Nmap configuration is converted without deleting historical data. Earlier future-module references below describe the initial design.
+Tài liệu đối chiếu với mã nguồn trên `main` ngày 2026-10-24. Xem [mục lục tài liệu](../README.md), [thiết kế frontend](frontend.md), [hướng dẫn chạy](../../README.md) và [requirements.txt](../../requirements.txt).
 
-# BACKEND.md — Security Audit Tool
+## Trạng thái hiện tại
 
-Tài liệu thiết kế chi tiết backend. Đi kèm `DESIGN.md` (thiết kế UI) và `requirements.txt`.
+| Thành phần | Trạng thái và giới hạn |
+|---|---|
+| Port Scanner | Đã triển khai: kiểm kê TCP LISTEN/UDP bằng psutil, đánh giá rủi ro, whitelist, diff và lịch sử; không phụ thuộc Nmap |
+| Firewall Check | Đã triển khai: PowerShell/NetSecurity chỉ đọc profiles và enabled rules từ ActiveStore, kèm bằng chứng và hướng dẫn thủ công |
+| Startup Programs | Chưa có backend module/API/journal; xem [kế hoạch đã cập nhật](../plans/startup-programs.md) |
+| Process Monitor | Chỉ có package stub, chưa có manifest để registry đăng ký |
+
+PR #1 đã được merge vào `main` tại `bc7675c`; bằng chứng kiểm thử nằm trong [báo cáo Firewall/Nmap](../testing/reports/firewall-check-nmap-removal.md). Nhật ký before/after, context theo SID và chống quét trùng của Startup mới thuộc kế hoạch, chưa phải tính năng của core hiện tại.
 
 ---
 
 ## 1. Mục tiêu & ràng buộc thiết kế
 
 - Chạy **local**, phục vụ đúng 1 người dùng (chính chủ máy) — không cần multi-tenant, nhưng vẫn cần auth tối thiểu vì API có thể đọc thông tin nhạy cảm (tiến trình, process path).
-- **Module hoá**: thêm chức năng kiểm tra mới (firewall, startup programs...) không được sửa code lõi (routing, scheduler, storage).
+- **Module hoá**: registry tự phát hiện manifest/router; core không import trực tiếp module cụ thể. Chỉ mở rộng hợp đồng chung khi hành vi mới thực sự cần, kèm kiểm thử tương thích module cũ.
 - **Real-time**: một lượt quét có thể mất vài giây đến vài chục giây → UI cần thấy tiến trình, không chỉ đợi kết quả cuối.
 - **Lưu lịch sử**: mọi lượt quét phải lưu lại để so sánh "cái gì mới xuất hiện" giữa các lần — đây là giá trị cốt lõi của một security tool, không chỉ là snapshot đơn lẻ.
 
@@ -71,6 +78,7 @@ class ScanResult(BaseModel):
     finished_at: str
     items: list[ScanResultItem]
     summary: dict            # số liệu cho KPI row trên UI
+    partial_result: bool = False
 
 class ScannerBase(ABC):
     module_id: str           # phải trùng với id khai báo trong manifest
@@ -96,13 +104,14 @@ class ScannerBase(ABC):
 # modules/port_scanner/manifest.py
 from core.module_registry import ModuleManifest
 from .scanner import PortScannerModule
+from .routes import router
 
 manifest = ModuleManifest(
     id="port-scanner",
     display_name="Port Scanner",
     version="0.1.0",
     scanner_cls=PortScannerModule,
-    router=None,              # optional: router riêng nếu module cần endpoint đặc thù
+    router=router,            # router riêng của module
     default_schedule=None,    # cron string nếu muốn tự động chạy định kỳ
 )
 ```
@@ -158,7 +167,7 @@ Khi lỗi:
 
 | Method | Endpoint | Mô tả |
 |---|---|---|
-| GET | `/api/v1/modules` | Danh sách module đã đăng ký (id, tên, trạng thái, có scan gần nhất không) — nguồn dữ liệu cho sidebar |
+| GET | `/api/v1/modules` | Module backend đã đăng ký và bật trong cấu hình, kèm scan gần nhất đã kết thúc; sidebar dùng manifest frontend và bổ sung badge từ API |
 | GET | `/api/v1/health` | Health check, dùng cho UI hiện trạng "Idle/Scanning" ở sidebar footer |
 
 ### 4.2 Port Scanner module
@@ -173,7 +182,9 @@ Khi lỗi:
 | POST | `/api/v1/modules/port-scanner/whitelist` | Thêm 1 mục vào whitelist (đánh dấu "an toàn") |
 | DELETE | `/api/v1/modules/port-scanner/whitelist/{id}` | Gỡ khỏi whitelist |
 
-**Thiết kế endpoint theo pattern chung `/api/v1/modules/{module_id}/...`** — mọi module tương lai (firewall-check, startup-programs) đi theo đúng convention này, tách route theo `module.router` riêng (mục 3.2), không dồn hết vào 1 file `routes.py` khổng lồ.
+**Thiết kế endpoint theo pattern chung `/api/v1/modules/{module_id}/...`**; Port Scanner và Firewall Check đã có router riêng. Startup Programs sẽ theo convention này khi được triển khai.
+
+Firewall Check hiện có `POST /api/v1/modules/firewall-check/scan` và ba endpoint GET `scans/latest`, `scans/{scan_id}`, `scans`. Summary gồm `total_profiles`, `total_rules`, `danger`, `warning`, `safe`; item có `kind: profile/rule`, bằng chứng, reason codes và guidance. Không có API sửa firewall hoặc whitelist firewall. Chi tiết contract đang chạy có trong [README](../../README.md#firewall-check-v1) và OpenAPI của FastAPI.
 
 ### 4.3 WebSocket
 
@@ -189,6 +200,8 @@ Server đẩy các message dạng:
 ```
 
 Frontend subscribe ngay sau khi gọi `POST .../scan` nhận được `scan_id`. Thiết kế này cho phép **mọi module dùng chung 1 kênh WebSocket theo `scan_id`**, không cần mở endpoint WS riêng cho từng module.
+
+Kênh `/ws/events` phát các sự kiện scan toàn cục. Cả hai kênh xác thực trước khi accept: browser gửi subprotocols `sec-audit` và `token.<encodeURIComponent(localToken)>`; client ngoài browser có thể gửi `X-Local-Token`. Origin của browser phải thuộc `allowed_origins`; token không đặt trong URL. Subscribe muộn được replay trạng thái done/error đã lưu, không replay đầy đủ từng item.
 
 ---
 
@@ -223,7 +236,7 @@ User (UI)          FastAPI              PortScannerModule        DB            W
 
 ### 5.2 Luồng quét tự động (scheduler)
 
-APScheduler gọi thẳng `module.run()` theo cron đã cấu hình trong `config.yaml`, **không qua** REST endpoint — vì đây là tiến trình nội bộ, không có request HTTP. Kết quả vẫn ghi DB và **broadcast qua WebSocket tới mọi client đang mở** (nếu có ai đang mở UI, họ thấy cập nhật realtime dù không phải người bấm nút quét) qua `event_bus`.
+APScheduler gọi `dispatch_scan(manifest)` rồi executor chạy `module.run()`, không qua REST. Hiện scheduler lấy cron từ `manifest.default_schedule` và kiểm tra `manifest.enabled`; trường YAML `modules.<id>.schedule` được parse nhưng chưa được scheduler sử dụng. Hai manifest đang hoạt động có lịch mặc định null nên chưa có job tự động mặc định. Kết quả vẫn đi qua pipeline lưu DB và event bus chung.
 
 ### 5.3 So sánh & phát hiện bất thường (diffing logic)
 
@@ -231,8 +244,8 @@ APScheduler gọi thẳng `module.run()` theo cron đã cấu hình trong `confi
 
 1. Sau khi `module.run()` trả `ScanResult`, với mỗi `item` gọi `module.get_whitelist_key(item)` để sinh khoá định danh.
 2. So khoá này với bảng `whitelist_entries` (đã được người dùng xác nhận an toàn trước đó) → nếu có, `severity` override thành `safe`.
-3. So với `ScanResult` liền trước của cùng module → khoá nào **chưa từng xuất hiện** → gắn cờ `is_new = true` (hiển thị badge "NEW" trên UI).
-4. Khoá nào nằm trong lượt trước nhưng **biến mất** ở lượt này → ghi vào `scan_diff_log` (hữu ích để biết "cổng X đã bị đóng lại lúc nào", phục vụ điều tra sau này).
+3. So với scan gần nhất cùng module có status done và partial_result false, bỏ qua scan hiện tại → khóa vắng ở mốc được gắn `is_new = true`. Đây không phải kiểm tra chưa từng xuất hiện trong toàn bộ lịch sử.
+4. Ghi cả `appeared` và `disappeared` vào `scan_diff_log` theo identity. Core hiện chưa lưu diff từng thuộc tính hoặc dữ liệu before/after; phần này được lên kế hoạch riêng cho Startup Programs.
 
 ---
 
@@ -251,7 +264,8 @@ CREATE TABLE scans (
     started_at    DATETIME NOT NULL,
     finished_at   DATETIME,
     summary_json  TEXT,               -- JSON: {total_open, danger, warning, safe,...}
-    error_message TEXT
+    error_message TEXT,
+    partial_result BOOLEAN NOT NULL DEFAULT 0
 );
 
 -- Từng kết quả trong 1 lượt quét
@@ -276,7 +290,7 @@ CREATE TABLE whitelist_entries (
     UNIQUE(module_id, whitelist_key)
 );
 
--- Log những mục biến mất giữa 2 lần quét (điều tra lịch sử)
+-- Log những mục thêm/biến mất giữa 2 lần quét
 CREATE TABLE scan_diff_log (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     module_id     TEXT NOT NULL,
@@ -291,7 +305,7 @@ CREATE TABLE scan_diff_log (
 
 ### 6.2 Model riêng module (ví dụ port_scanner)
 
-Nếu module cần bảng riêng ngoài `detail_json` (ví dụ bảng cấu hình riêng), đặt trong `modules/port_scanner/models.py`, migration riêng qua Alembic, **có prefix tên bảng theo module** (`port_scanner_config`) để tránh đụng namespace.
+Nếu module cần bảng riêng ngoài `detail_json`, đặt model trong module, kế thừa Base chung và dùng prefix theo module (`port_scanner_config`). Hiện app import manifest trước khi gọi `Base.metadata.create_all`; chưa có pipeline Alembic được cấu hình dù dependency đã cài. `create_all` tạo bảng còn thiếu, không tự migrate cột của bảng đã tồn tại.
 
 ---
 
@@ -312,10 +326,11 @@ modules:
     schedule: null        # ví dụ "0 */6 * * *" nếu muốn tự quét mỗi 6h
     known_risky_ports: [4444, 1337, 31337]
   firewall-check:
-    enabled: false          # module chưa triển khai, nằm sẵn để bật lên khi code xong
+    enabled: true
+    schedule: null
 ```
 
-Mỗi module đọc đúng section `modules.<module_id>` của mình qua `pydantic-settings`, không đọc config của module khác.
+Config đọc `backend/config.yaml` bằng PyYAML và validate bằng Pydantic. Mỗi module lấy section của mình qua `config.module(id)`; key riêng nằm trong ModuleSettings.extra. Không đưa token thật vào Git. Ví dụ YAML chỉ minh họa cấu hình; hạn chế scheduler hiện tại được nêu ở mục 5.2.
 
 ---
 
@@ -323,14 +338,15 @@ Mỗi module đọc đúng section `modules.<module_id>` của mình qua `pydant
 
 - Đọc toàn bộ `psutil.net_connections()` với thông tin process đầy đủ trên Windows **cần quyền Administrator** — nếu thiếu quyền, `psutil` trả `AccessDenied` cho một số tiến trình. Backend xử lý: vẫn trả kết quả các port đọc được, đồng thời gắn cờ `partial_result: true` + thông báo rõ trong response để UI hiện banner cảnh báo (đúng theo `EmptyState`/error banner đã mô tả trong `DESIGN.md`).
 - Port Scanner chỉ dùng psutil. `scan_mode: nmap` từ cấu hình cũ được chuyển sang `socket` với cảnh báo log; giữ cột database cũ để tránh migration.
-- Mọi exception trong `module.run()` được bọc bởi executor chung ở `core/` (không phải từng module tự try/except riêng lẻ), đảm bảo 1 module lỗi không làm sập cả app, và luôn trả về đúng envelope lỗi chuẩn ở mục 4.
+- Firewall Check có timeout 60 giây; unsupported platform, thiếu quyền, thiếu NetSecurity, lỗi query và dữ liệu sai đều làm scan error, không tạo kết quả an toàn giả. Collector chuyển lỗi nền tảng thành ScanError để executor ghi trạng thái lỗi và phát WebSocket error.
+- Lỗi trong `module.run()` được executor chung ghi nhận. HTTP start đã trả scan_id trước khi collector chạy; lỗi lúc quét được xem qua WebSocket hoặc lịch sử, không biến hồi tố thành HTTP error của request start.
 
 ---
 
 ## 9. Bảo mật cho chính backend
 
 - Mặc định chỉ bind `127.0.0.1` — không truy cập được từ máy khác trong mạng LAN trừ khi người dùng chủ động đổi `host` trong config.
-- Vì UI có thể hiển thị đường dẫn thực thi, PID, thông tin tiến trình nhạy cảm, khuyến nghị thêm 1 token đơn giản (local API key sinh ngẫu nhiên lúc cài đặt, lưu trong `config.yaml`, FE gửi qua header `X-Local-Token`) — tránh trường hợp có trang web độc hại nào đó gọi `fetch('http://127.0.0.1:8000/...')` từ trình duyệt (CSRF kiểu localhost).
+- Token nội bộ đã được triển khai: sinh và lưu trong backend/config.yaml lúc khởi động nếu chưa có; REST dùng X-Local-Token, WebSocket dùng header hoặc subprotocol như mục 4.3. Mặc định require_local_token true; chế độ dev/test có thể tắt nên không dùng cấu hình đó để chia sẻ ứng dụng.
 - CORS: chỉ cho phép origin của chính frontend (`http://127.0.0.1:5173` lúc dev, hoặc origin của bundle production).
 
 ---
@@ -339,6 +355,7 @@ Mỗi module đọc đúng section `modules.<module_id>` của mình qua `pydant
 
 - `pytest` + `httpx.AsyncClient` để test REST endpoint qua `TestClient` của FastAPI.
 - Mock `psutil.net_connections()` để test logic diffing/whitelist mà không phụ thuộc trạng thái máy thật lúc CI chạy.
+- Firewall có unit/API tests và test collector PowerShell bằng cmdlet giả; Selenium là opt-in với `python -m pytest --selenium`. Hướng dẫn chạy trong [README](../../README.md#kiểm-thử); số liệu các lần chạy trước nằm trong [báo cáo](../testing/reports/firewall-check-nmap-removal.md), không thay cho kiểm thử mới.
 - Mỗi module bắt buộc có `tests/test_scanner.py` riêng trong thư mục module — pattern test cũng "đi theo module" như code, tránh 1 file test khổng lồ dùng chung.
 
 ---
@@ -355,4 +372,4 @@ Mỗi module đọc đúng section `modules.<module_id>` của mình qua `pydant
 
 ## 12. Ghi chú phạm vi
 
-Tài liệu này đã thiết kế đầy đủ tầng lõi (core) và chi tiết hoá module **Port Scanner**. Các module tương lai (Firewall Check, Startup Programs, Outbound Connections) chỉ cần tuân theo `ScannerBase` + convention ở mục 11, chưa cần thiết kế logic `run()` chi tiết cho từng module đó ở giai đoạn này.
+Port Scanner và Firewall Check đã hoạt động. Startup Programs có [thiết kế và checklist](../plans/startup-programs.md), chưa có collector, API hoặc bảng journal. Outbound Connections vẫn là placeholder frontend; không coi sự hiện diện của manifest coming-soon là module backend đã triển khai. Firewall đánh giá cấu hình, không chứng minh cổng có thể truy cập từ Internet hay giải quyết mọi điều kiện tương tác giữa các rule.

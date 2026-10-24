@@ -1,5 +1,7 @@
 # Verification — Nmap removal and Firewall Check v1
 
+> **Current status (2026-10-24):** PR #1 is merged into main at bc7675c098b5f4b60f893e7aa88af745ad167e7a. The final review-fix run recorded 295 passed, 0 failed, 0 skipped; earlier counts and pre-merge instructions below are historical evidence. This documentation refactor does not constitute a new application test run. Startup Programs remains planned, not implemented.
+
 ## Delivered behavior
 
 - Port Scanner uses psutil only, including TCP LISTEN, UDP, IPv4/IPv6 and process metadata. Legacy `scan_mode: nmap` becomes socket mode with a warning; existing database fields and history remain readable.
@@ -62,8 +64,8 @@ Final command, run from backend/: `python -u -m pytest --selenium -v --basetemp 
 
 Pre-push evidence is in backend/.pytest_cache/pre-push-native-20261024.log and pre-push-native-20261024.xml. This complete rerun used the same suite with a 45-second diagnostic timeout and its own basetemp; native execution was required after the sandboxed attempt stalled before the first API test. Generated logs and XML are not committed.
 
-All implementation/checklist tasks are complete. The proposed next feature, Startup Programs, has a design and implementation plan in Plan_Startup_Programs.md; it is not implemented by this change.
+All implementation/checklist tasks are complete. The proposed next feature, Startup Programs, has a design and implementation plan in [Startup Programs plan](../../plans/startup-programs.md); it is not implemented by this change.
 
 The collector audits configuration; it does not establish Internet reachability or resolve every interacting firewall condition. The coverage figures are line coverage, not branch or JavaScript coverage. Chrome was exercised; Firefox was not. One existing FastAPI/Starlette TestClient deprecation warning remains; dependencies were not upgraded as part of this task.
 
-Implementation was initially left uncommitted for review. On 2026-10-24 the user authorized commits and a push of `codex/firewall-check-nmap-removal`; the publication checklist is in Implementation_Checklist.md. The existing whitelist Settings panel and Selenium selectors are included separately so the committed browser suite has its required UI. Local configuration, tokens, databases and generated output remain excluded. New documentation is force-added individually under the existing docs/ ignore rule.
+Implementation was initially left uncommitted for review. On 2026-10-24 the user authorized commits and a push of `codex/firewall-check-nmap-removal`; the publication checklist is in [publication checklist](../../plans/completed/firewall-check-nmap-removal-checklist.md). The existing whitelist Settings panel and Selenium selectors are included separately so the committed browser suite has its required UI. Local configuration, tokens, databases and generated output remain excluded. New documentation is force-added individually under the existing docs/ ignore rule.

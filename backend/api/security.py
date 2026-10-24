@@ -14,7 +14,7 @@ class ApiError(HTTPException):
 
 
 def require_local_token(x_local_token: str | None = Header(default=None)) -> None:
-    """Kiểm tra token nội bộ (chống localhost CSRF — mục 9 BACKEND.md).
+    """Kiểm tra token nội bộ (chống localhost CSRF — mục 9 docs/architecture/backend.md).
 
     Bỏ qua khi config chưa bật require_local_token (dùng cho dev/test).
     """

@@ -13,7 +13,7 @@ class Scheduler:
     """Bọc APScheduler — đăng ký scan tự động theo cron từ manifest.default_schedule.
 
     Scan tự động chạy thẳng qua executor (không qua REST) và broadcast kết quả
-    qua event_bus tới mọi client đang mở (mục 5.2 BACKEND.md).
+    qua event_bus tới mọi client đang mở (mục 5.2 docs/architecture/backend.md).
     """
 
     def __init__(self, registry: dict) -> None:

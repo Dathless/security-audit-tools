@@ -1,6 +1,8 @@
 # Implementation checklist — Firewall Check and Nmap removal
 
-Plan: `docs/Plan_Firewall_Check_Nmap_Removal.md`
+> **Completed:** PR #1 was merged into main at bc7675c098b5f4b60f893e7aa88af745ad167e7a. The final recorded suite passed 295 tests including browser tests. Earlier no-push/no-merge notes below preserve the authorization sequence; they are not outstanding work. The next feature remains an unimplemented [Startup Programs plan](../startup-programs.md).
+
+Plan: [Firewall Check and Nmap removal](firewall-check-nmap-removal.md)
 
 - [x] 1. Remove Nmap; verify legacy configuration and port scan regression tests.
 - [x] 2. Implement read-only Windows collector, validation, classification and tests.
@@ -42,7 +44,7 @@ Plan: `docs/Plan_Firewall_Check_Nmap_Removal.md`
 - Second full rerun: 284 passed, 3 failed. History navigation still relied on previous test data; two navigation checks read a stale DOM/health state. The revised test cases seed their own history and wait for backend completion or the target page/title; all three passed together.
 - Final complete rerun: **287 passed, 0 failed, 0 skipped**, one existing TestClient deprecation warning, 398.98 seconds. Command: `python -u -m pytest --selenium -v --basetemp .pytest_cache/verified-all --tb=short --durations=10 --junitxml=.pytest_cache/verified-all.xml`. Evidence: backend/.pytest_cache/verified-all.log and verified-all.xml.
 - Final frontend `pnpm lint` and `pnpm build` passed; `git diff --check` passed.
-- Next-feature proposal saved as docs/Plan_Startup_Programs.md, using superpowers:writing-plans. It contains the design, alternatives, Windows source boundaries, API/UI contracts and task/test checklist; no Startup Programs code was implemented.
+- Next-feature proposal saved as docs/plans/startup-programs.md, using superpowers:writing-plans. It contains the design, alternatives, Windows source boundaries, API/UI contracts and task/test checklist; no Startup Programs code was implemented.
 - Ruling: leave the feature branch and all source changes uncommitted for review. This request authorized implementation and verification, not integration/publication; the prior no-push constraint remains in effect.
 
 ## Publication checklist — 2026-10-24

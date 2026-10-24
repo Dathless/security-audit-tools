@@ -12,11 +12,11 @@
   <img src="https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white" alt="SQLite">
 </div>
 
-> Công cụ kiểm tra bảo mật cho laptop Windows cá nhân — quét cổng đang mở, đối chiếu whitelist và phát hiện bất thường mới xuất hiện giữa các lần quét theo thời gian thực.
+> Công cụ kiểm tra bảo mật cho laptop Windows cá nhân — kiểm kê cổng, kiểm tra cấu hình firewall và theo dõi thay đổi giữa các lượt quét theo thời gian thực.
 
-**Security Audit Tool** là ứng dụng **local-first** chạy trên chính chiếc máy cần kiểm tra. Nó quét các cổng đang `LISTEN`, gắn mức độ rủi ro, cho phép đánh dấu "an toàn" (whitelist) và — quan trọng nhất — **so sánh với các lượt quét trước** để cảnh báo những gì *mới xuất hiện* hoặc *biến mất* trên máy của bạn.
+**Security Audit Tool** là ứng dụng **local-first** chạy trên chính chiếc máy cần kiểm tra. Port Scanner kiểm kê TCP LISTEN/UDP bằng `psutil`, hỗ trợ whitelist và so sánh identity giữa các lượt quét. Firewall Check đọc profiles/rules Windows, giải thích cảnh báo và lưu lịch sử. Startup Programs đã có [kế hoạch thiết kế](docs/plans/startup-programs.md), chưa được triển khai.
 
-Kiến trúc **module hoá hai chiều** (backend + frontend) cho phép thêm một module kiểm tra mới (Firewall Check, Startup Programs, Outbound Connections…) chỉ bằng cách thêm một thư mục, không đụng vào bất kỳ file lõi nào.
+Kiến trúc **module hoá hai chiều** (backend + frontend) tự phát hiện manifest và router/page của module mới. Khi chức năng cần mở rộng hợp đồng chung, thay đổi core phải giữ tương thích và có kiểm thử hồi quy cho các module hiện có.
 
 ---
 
@@ -80,7 +80,7 @@ Kiến trúc **module hoá hai chiều** (backend + frontend) cho phép thêm m�
 - **Sidebar sinh tự động từ registry** module, kèm badge đỏ đếm số mục cần xem và trạng thái backend (Idle / Đang quét / Offline).
 - **Scan History** — lịch sử tổng hợp các lượt quét.
 - **Settings** — cấu hình token nội bộ, xem danh sách module backend.
-- **Quét tự động theo lịch** (APScheduler) nếu module khai báo `default_schedule` — kết quả broadcast tới mọi client đang mở qua kênh WebSocket toàn cục.
+- **Hạ tầng quét theo lịch** (APScheduler) dùng `manifest.default_schedule` — kết quả broadcast qua WebSocket toàn cục. Hai module hiện tại mặc định chưa có lịch; trường YAML `schedule` chưa được scheduler sử dụng.
 
 ---
 
@@ -212,8 +212,12 @@ Security-Audit-Tools/
 │           └── outbound-connections/  # ⏳ coming-soon
 │
 ├── docs/
-│   ├── BACKEND.md                # Thiết kế chi tiết backend
-│   └── (DESIGN.md nằm trong frontend/)  # Thiết kế UI/UX + design tokens
+│   ├── README.md                 # Mục lục và quy ước tài liệu
+│   ├── architecture/             # Thiết kế hệ thống
+│   ├── plans/                    # Kế hoạch hiện tại, hoàn thành và đề xuất
+│   ├── testing/                  # Kế hoạch và bằng chứng kiểm thử
+│   ├── archive/                  # Tài liệu kiểm thử lịch sử
+│   └── screenshots/              # Ảnh minh họa
 ├── data/                         # SQLite DB sinh lúc chạy (git-ignored)
 ├── requirements.txt              # Python dependencies (bản khóa phiên bản)
 └── README.md
@@ -493,12 +497,13 @@ pnpm build    # chạy tsc -b trước khi vite build → check type
 
 - [x] **Port Scanner** — kiểm kê TCP/UDP bằng psutil, whitelist, diffing, real-time, radar map, scan history, settings.
 - [x] **Firewall Check** — profile đang dùng, trạng thái/policy, rule đang bật, giải thích cảnh báo và lịch sử.
-- [ ] **Startup Programs** — liệt kê và đánh giá chương trình tự khởi động cùng Windows.
+- [ ] **Startup Programs** — [thiết kế đã chốt](docs/plans/startup-programs.md): kiểm kê Run/RunOnce và Startup folders, lưu nhật ký thêm/xóa/sửa với command/hash trước và sau; chưa triển khai.
 - [ ] **Outbound Connections** — theo dõi kết nối ra ngoài đang hoạt động.
 - [ ] **Process Monitor** — theo dõi tiến trình.
-- [ ] Xác thực bằng token hoàn thiện hơn, xuất báo cáo (reports).
+- [x] **Xác thực local** — REST dùng X-Local-Token; WebSocket kiểm tra token và browser Origin.
+- [ ] **Xuất báo cáo** và kết nối lịch YAML vào scheduler.
 
-Các module chưa triển khai đã có sẵn vị trí trong sidebar (trạng thái `coming-soon`) để luôn thấy được lộ trình mở rộng.
+Startup Programs và Outbound Connections có vị trí `coming-soon` trong sidebar; Process Monitor hiện chỉ là package stub ở backend. Các mục này không đồng nghĩa đã có API hoặc collector hoạt động.
 
 ---
 
@@ -506,8 +511,10 @@ Các module chưa triển khai đã có sẵn vị trí trong sidebar (trạng t
 
 | Tài liệu | Nội dung |
 |---|---|
-| [`docs/BACKEND.md`](docs/BACKEND.md) | Thiết kế chi tiết backend: module system, API, luồng hoạt động, DB schema, xử lý lỗi |
-| [`frontend/DESIGN.md`](frontend/DESIGN.md) | Thiết kế UI/UX: design tokens, layout contract, cơ chế mở rộng, states |
+| [Mục lục tài liệu](docs/README.md) | Cấu trúc, quy ước và điểm bắt đầu theo nhu cầu |
+| [Thiết kế backend](docs/architecture/backend.md) | Module system, API, luồng hoạt động, DB schema, xử lý lỗi |
+| [Kế hoạch Startup Programs](docs/plans/startup-programs.md) | Thiết kế module tiếp theo, nhật ký thay đổi và checklist triển khai |
+| [Thiết kế frontend](docs/architecture/frontend.md) | UI/UX: design tokens, layout contract, cơ chế mở rộng và trạng thái tính năng; frontend/DESIGN.md giữ liên kết tương thích |
 
 ---
 

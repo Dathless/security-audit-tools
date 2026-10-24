@@ -9,7 +9,7 @@ import type {
 } from "../core/types/api";
 
 /**
- * Client API khớp với backend (docs/BACKEND.md + mã nguồn backend).
+ * Client API khớp với backend (docs/architecture/backend.md + mã nguồn backend).
  * Envelope: { success: true, data, error: null } | { success: false, data: null, error: {code,message} }
  */
 
