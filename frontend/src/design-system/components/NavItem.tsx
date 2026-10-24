@@ -10,6 +10,11 @@ interface NavItemProps {
   badge?: number;
   href?: string;
   onNavigate?: () => void;
+  dataTestId?: string;
+  dataModule?: string;
+  dataStatus?: string;
+  dataRoute?: string;
+  dataGroup?: string;
 }
 
 /** Mục trong sidebar: icon + label + active/disabled + badge số. */
@@ -22,6 +27,11 @@ export function NavItem({
   badge = 0,
   href,
   onNavigate,
+  dataTestId,
+  dataModule,
+  dataStatus,
+  dataRoute,
+  dataGroup,
 }: NavItemProps): ReactElement {
   const cls = [
     "nav-item",
@@ -35,6 +45,11 @@ export function NavItem({
     <a
       className={cls}
       href={href ?? "#"}
+      data-testid={dataTestId}
+      data-module={dataModule}
+      data-status={dataStatus}
+      data-route={dataRoute}
+      data-group={dataGroup}
       aria-current={active ? "page" : undefined}
       aria-disabled={disabled || undefined}
       onClick={

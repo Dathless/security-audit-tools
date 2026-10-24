@@ -32,7 +32,7 @@ function Sidebar({ route }: { route: string }): ReactElement {
   }, [healthStatus]);
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" data-testid="sidebar">
       <a className="brand" href="#/">
         <span className="brand-mark">▣</span>
         <span className="brand-name">Security Audit</span>
@@ -50,12 +50,26 @@ function Sidebar({ route }: { route: string }): ReactElement {
             disabled={m.status !== "active"}
             soon={m.status !== "active"}
             badge={badges[m.id] ?? 0}
+            dataTestId={`nav-item-${m.id}`}
+            dataModule={m.id}
+            dataStatus={m.status}
+            dataRoute={m.route}
+            dataGroup="modules"
           />
         ))}
 
         <p className="nav-group-label nav-group-spacer">General</p>
         {GENERAL_NAV.map((g) => (
-          <NavItem key={g.route} icon={g.icon} label={g.label} href={`#${g.route}`} active={route === g.route} />
+          <NavItem
+            key={g.route}
+            icon={g.icon}
+            label={g.label}
+            href={`#${g.route}`}
+            active={route === g.route}
+            dataTestId={`nav-item-${g.route.replace(/^\//, "")}`}
+            dataRoute={g.route}
+            dataGroup="general"
+          />
         ))}
       </nav>
 
@@ -76,8 +90,8 @@ function Topbar({ route }: { route: string }): ReactElement {
     module?.name ?? GENERAL_NAV.find((g) => g.route === route)?.label ?? "";
 
   return (
-    <header className="topbar">
-      <div className="breadcrumb">
+    <header className="topbar" data-testid="topbar">
+      <div className="breadcrumb" data-testid="breadcrumb">
         <span className="crumb">Security Audit</span>
         <span className="crumb-sep" aria-hidden="true">
           /
@@ -88,6 +102,7 @@ function Topbar({ route }: { route: string }): ReactElement {
       <div className="topbar-actions">
         <Button
           variant="primary"
+          data-testid="scan-button"
           onClick={() => handler?.()}
           disabled={!module || !handler}
           title={module?.status !== "active" ? "Module chưa khả dụng" : "Quét ngay"}

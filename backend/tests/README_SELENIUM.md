@@ -6,7 +6,7 @@ End-to-end UI tests using Selenium WebDriver for the Security Audit Tool fronten
 
 | File | Description |
 |------|-------------|
-| `conftest_selenium.py` | Selenium fixtures: driver, backend/frontend processes, helpers |
+| `conftest.py` | Selenium fixtures: driver, backend/frontend processes, helpers |
 | `test_selenium_port_scanner.py` | Port Scanner page tests (load, empty state, scan flow, results, radar, whitelist, errors) |
 | `test_selenium_navigation_layout.py` | Navigation, layout contract, design tokens, responsive, accessibility |
 | `test_selenium_scan_flow.py` | Scan lifecycle, WebSocket real-time, history, whitelist persistence, error recovery, performance |
@@ -209,5 +209,11 @@ Add these `data-testid` attributes to frontend components for stable selectors:
 
 // NavItem
 <nav data-testid="nav-item-port-scanner" data-module="port-scanner" data-status="active">...</nav>
-<nav data-testid="nav-item-firewall-check" data-module="firewall-check" data-status="coming-soon">...</nav>
+<nav data-testid="nav-item-firewall-check" data-module="firewall-check" data-status="active">...</nav>
 ```
+
+## Firewall Check and test isolation
+
+`test_selenium_firewall.py` covers active navigation, a read-only Windows Firewall scan, profile/rule rendering, search, module history, interrupted WebSocket transport and navigation during a scan. Run it from `backend/` with `pytest tests/test_selenium_firewall.py --selenium`.
+
+The fixtures start a dedicated backend using a temporary SQLite database and `test-token`; they do not write scan results into the normal application database. Each browser test waits for any earlier scan to finish and clears only that temporary database. Vite uses the test token through `VITE_LOCAL_TOKEN`. Backend logs are written beside the temporary database to prevent undrained PIPE buffers from blocking the server. Both processes are terminated during teardown.

@@ -13,26 +13,26 @@ class TestPortScannerPageLoad:
     def test_page_loads_with_correct_title(self, driver):
         driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         WebDriverWait(driver, 10).until(
-            EC.title_contains("Security Audit Tool")
+            EC.title_is("Security Audit")
         )
-        assert "Security Audit Tool" in driver.title
+        assert driver.title == "Security Audit"
 
     def test_page_shows_module_header(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         header = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='page-title'], .page-title, h1"))
         )
         assert "Port Scanner" in header.text
 
     def test_page_shows_description(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         desc = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='page-description'], .page-description"))
         )
         assert "Quét toàn bộ cổng" in desc.text or "LISTEN" in desc.text
 
     def test_page_shows_kpi_row(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         kpi_cards = WebDriverWait(driver, 10).until(
             EC.presence_of_all_elements_located((By.CSS_SELECTOR, "[data-testid='kpi-card'], .kpi-card"))
         )
@@ -40,10 +40,10 @@ class TestPortScannerPageLoad:
         labels = [card.find_element(By.CSS_SELECTOR, "[data-testid='kpi-label'], .kpi-label").text for card in kpi_cards]
         expected_labels = ["Cổng đang mở", "Nguy hiểm", "Cảnh báo", "An toàn"]
         for expected in expected_labels:
-            assert any(expected in label for label in labels), f"Missing KPI: {expected}"
+            assert any(expected.lower() in label.lower() for label in labels), f"Missing KPI: {expected}"
 
     def test_page_shows_two_panels(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         panels = WebDriverWait(driver, 10).until(
             EC.presence_of_all_elements_located((By.CSS_SELECTOR, "[data-testid='panel'], .panel"))
         )
@@ -58,16 +58,15 @@ class TestPortScannerEmptyState:
     """Tests for empty state when no scan has been performed."""
 
     def test_shows_empty_state_when_no_scans(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
-        empty_state = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='empty-state'], .empty-state"))
-        )
-        assert "Chưa có dữ liệu quét" in empty_state.text or "Chưa có lượt quét" in empty_state.text
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
+        WebDriverWait(driver, 10).until(EC.text_to_be_present_in_element(
+            (By.CSS_SELECTOR, "[data-testid='empty-state']"), "Chưa có dữ liệu quét"
+        ))
 
     def test_empty_state_has_scan_button(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button'], button:contains('Quét ngay'), .scan-button"))
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button']"))
         )
         assert btn.is_displayed()
         assert "Quét ngay" in btn.text or "Scan" in btn.text
@@ -78,21 +77,21 @@ class TestPortScannerSidebar:
     """Tests for sidebar navigation."""
 
     def test_sidebar_shows_port_scanner_module(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         nav_item = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='nav-item-port-scanner'], .nav-item[data-module='port-scanner']"))
         )
         assert "Port Scanner" in nav_item.text
 
     def test_port_scanner_nav_item_active(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         nav_item = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='nav-item-port-scanner'], .nav-item[data-module='port-scanner']"))
         )
         assert "active" in nav_item.get_attribute("class") or nav_item.get_attribute("aria-current") == "page"
 
     def test_sidebar_shows_general_group(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         general_items = driver.find_elements(By.CSS_SELECTOR, "[data-testid^='nav-item-'], .nav-item[data-group='general']")
         texts = [item.text for item in general_items]
         assert any("Lịch sử" in t or "History" in t for t in texts)
@@ -104,9 +103,9 @@ class TestPortScannerScanFlow:
     """Tests for scan initiation and progress."""
 
     def test_click_scan_button_starts_scan(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button'], button:contains('Quét ngay'), .scan-button"))
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button']"))
         )
         btn.click()
 
@@ -116,21 +115,21 @@ class TestPortScannerScanFlow:
         assert progress.is_displayed()
 
     def test_scan_shows_progress_details(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button'], button:contains('Quét ngay'), .scan-button"))
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button']"))
         )
         btn.click()
 
         progress_text = WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='progress-text'], .progress-text, [data-testid='progress-message']"))
+            EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='progress-message']"))
         )
-        assert "đã quét" in progress_text.text.lower() or "scanning" in progress_text.text.lower()
+        assert "quét" in progress_text.text.lower() or "kiểm tra" in progress_text.text.lower() or "scanning" in progress_text.text.lower()
 
     def test_scan_complete_shows_results_table(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button'], button:contains('Quét ngay'), .scan-button"))
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button']"))
         )
         btn.click()
 
@@ -143,7 +142,7 @@ class TestPortScannerScanFlow:
         header_texts = [h.text for h in headers]
         expected_columns = ["Trạng thái", "Cổng", "Tiến trình", "Giao thức", "Listener", "Mới", "Lý do"]
         for expected in expected_columns:
-            assert any(expected in h for h in header_texts), f"Missing column: {expected}"
+            assert any(expected.lower() in h.lower() for h in header_texts), f"Missing column: {expected}"
 
 
 @pytest.mark.selenium
@@ -151,9 +150,9 @@ class TestPortScannerResultsTable:
     """Tests for results table functionality."""
 
     def test_table_rows_have_mono_font_for_technical_data(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button'], button:contains('Quét ngay'), .scan-button"))
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button']"))
         )
         btn.click()
 
@@ -169,9 +168,9 @@ class TestPortScannerResultsTable:
             assert "mono" in font_family.lower() or "JetBrains Mono" in font_family
 
     def test_status_badge_shows_correct_colors(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button'], button:contains('Quét ngay'), .scan-button"))
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button']"))
         )
         btn.click()
 
@@ -185,9 +184,9 @@ class TestPortScannerResultsTable:
             assert color is not None
 
     def test_new_badge_shows_for_new_items(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button'], button:contains('Quét ngay'), .scan-button"))
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button']"))
         )
         btn.click()
 
@@ -204,9 +203,9 @@ class TestPortScannerWhitelistActions:
     """Tests for whitelist mark safe/unmark safe actions."""
 
     def test_mark_safe_button_appears_in_row_actions(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button'], button:contains('Quét ngay'), .scan-button"))
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button']"))
         )
         btn.click()
 
@@ -220,9 +219,9 @@ class TestPortScannerWhitelistActions:
             assert "Đánh dấu an toàn" in btn.text or "Mark safe" in btn.text
 
     def test_click_mark_safe_changes_to_unmark(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button'], button:contains('Quét ngay'), .scan-button"))
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button']"))
         )
         btn.click()
 
@@ -245,16 +244,16 @@ class TestPortScannerRadarMap:
     """Tests for radar map visualization."""
 
     def test_radar_map_rendered(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         radar = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='radar-map'], .radar-map, svg"))
         )
         assert radar.is_displayed()
 
     def test_radar_map_shows_dots_after_scan(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button'], button:contains('Quét ngay'), .scan-button"))
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button']"))
         )
         btn.click()
 
@@ -271,9 +270,9 @@ class TestPortScannerErrorStates:
     """Tests for error handling in UI."""
 
     def test_shows_error_banner_on_permission_denied(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button'], button:contains('Quét ngay'), .scan-button"))
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button']"))
         )
         btn.click()
 

@@ -184,11 +184,11 @@ export function PortScannerPage(): ReactElement {
     return (
       <div className="row-actions">
         {allMarkedSafe ? (
-          <Button variant="subtle" size="sm" onClick={() => safeEntries.forEach((e) => void unmarkSafe(e.id))}>
+          <Button variant="subtle" size="sm" data-testid="mark-safe-btn" onClick={() => safeEntries.forEach((e) => void unmarkSafe(e.id))}>
             Bỏ an toàn
           </Button>
         ) : (
-          <Button variant="ghost" size="sm" onClick={() => r.items.forEach((i) => void markSafe(i))}>
+          <Button variant="ghost" size="sm" data-testid="mark-safe-btn" onClick={() => r.items.forEach((i) => void markSafe(i))}>
             Đánh dấu an toàn
           </Button>
         )}
@@ -233,10 +233,12 @@ export function PortScannerPage(): ReactElement {
               description={error?.message ?? "Không tải được lượt quét gần nhất từ backend."}
               action={
                 <>
-                  <Button variant="ghost" onClick={() => retryLoad()}>
+                  <Button variant="ghost" data-testid="retry-btn" onClick={() => retryLoad()}>
                     Tải lại
                   </Button>{" "}
-                  <Button onClick={() => void startScan()}>Quét ngay</Button>
+                  <Button data-testid="scan-button" onClick={() => void startScan()}>
+                    Quét ngay
+                  </Button>
                 </>
               }
             />
@@ -244,7 +246,11 @@ export function PortScannerPage(): ReactElement {
             <EmptyState
               title="Chưa có dữ liệu quét"
               description="Chưa có lượt quét nào. Bấm 'Quét ngay' để kiểm tra các cổng đang lắng nghe trên máy này."
-              action={<Button onClick={() => void startScan()}>Quét ngay</Button>}
+              action={
+                <Button data-testid="scan-button" onClick={() => void startScan()}>
+                  Quét ngay
+                </Button>
+              }
             />
           ) : (
             <DataTable

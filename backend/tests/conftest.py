@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sqlite3
 import subprocess
 import sys
 import time
@@ -26,16 +27,33 @@ SELENIUM_HEADLESS = os.getenv("SELENIUM_HEADLESS", "true").lower() == "true"
 
 
 @pytest.fixture(scope="session")
-def backend_process() -> Generator[subprocess.Popen, None, None]:
+def selenium_database(tmp_path_factory):
+    return tmp_path_factory.mktemp("selenium") / "test.db"
+
+
+@pytest.fixture(scope="session")
+def backend_process(selenium_database) -> Generator[subprocess.Popen, None, None]:
     """Start backend server for UI tests."""
     env = os.environ.copy()
     env["PYTHONPATH"] = str(BACKEND_DIR)
+    env["SELENIUM_DATABASE"] = str(selenium_database)
+    log_path = Path(env["SELENIUM_DATABASE"]).with_name("backend.log")
+    log_file = log_path.open("w", encoding="utf-8")
+    script = (
+        "import os; from core.config import config; "
+        "config.settings.app.local_token='test-token'; "
+        "config.settings.app.require_local_token=True; "
+        "from core.config import ModuleSettings; "
+        "config.settings.modules['firewall-check']=ModuleSettings(enabled=True); "
+        "from storage.db import db; db.configure('sqlite:///' + os.environ['SELENIUM_DATABASE']); "
+        "import uvicorn; uvicorn.run('main:app', host='127.0.0.1', port=8000)"
+    )
     proc = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8000"],
+        [sys.executable, "-c", script],
         cwd=BACKEND_DIR,
         env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stdout=log_file,
+        stderr=subprocess.STDOUT,
     )
     for _ in range(30):
         try:
@@ -46,23 +64,29 @@ def backend_process() -> Generator[subprocess.Popen, None, None]:
             time.sleep(0.5)
     else:
         proc.terminate()
-        stdout, stderr = proc.communicate(timeout=5)
-        pytest.fail(f"Backend failed to start:\nSTDOUT:\n{stdout.decode()}\nSTDERR:\n{stderr.decode()}")
+        proc.wait(timeout=5)
+        log_file.close()
+        pytest.fail(f"Backend failed to start:\n{log_path.read_text(encoding='utf-8', errors='replace')}")
     yield proc
     proc.terminate()
     try:
         proc.wait(timeout=5)
     except subprocess.TimeoutExpired:
         proc.kill()
+        proc.wait(timeout=5)
+    log_file.close()
 
 
 @pytest.fixture(scope="session")
 def frontend_process(backend_process) -> Generator[subprocess.Popen, None, None]:
     """Start frontend dev server for UI tests."""
     env = os.environ.copy()
-    env["VITE_API_BASE_URL"] = "http://127.0.0.1:8000"
+    env["VITE_API_BASE"] = "http://127.0.0.1:8000/api/v1"
+    env["VITE_LOCAL_TOKEN"] = "test-token"
+    # Start Node directly so fixture teardown terminates Vite rather than a shell shim.
+    cmd = ["node", str(FRONTEND_DIR / "node_modules/vite/bin/vite.js"), "--host", "127.0.0.1", "--port", "5173", "--strictPort"]
     proc = subprocess.Popen(
-        ["pnpm", "run", "dev", "--host", "127.0.0.1", "--port", "5173"],
+        cmd,
         cwd=FRONTEND_DIR,
         env=env,
         stdout=subprocess.PIPE,
@@ -87,9 +111,9 @@ def frontend_process(backend_process) -> Generator[subprocess.Popen, None, None]
         proc.kill()
 
 
-def _create_chrome_driver() -> WebDriver:
+def _create_chrome_driver(headless: bool = SELENIUM_HEADLESS) -> WebDriver:
     options = ChromeOptions()
-    if SELENIUM_HEADLESS:
+    if headless:
         options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
@@ -101,9 +125,9 @@ def _create_chrome_driver() -> WebDriver:
     return webdriver.Chrome(options=options)
 
 
-def _create_firefox_driver() -> WebDriver:
+def _create_firefox_driver(headless: bool = SELENIUM_HEADLESS) -> WebDriver:
     options = FirefoxOptions()
-    if SELENIUM_HEADLESS:
+    if headless:
         options.add_argument("--headless")
     options.add_argument("--width=1366")
     options.add_argument("--height=768")
@@ -111,12 +135,25 @@ def _create_firefox_driver() -> WebDriver:
 
 
 @pytest.fixture(scope="function")
-def driver(frontend_process) -> Generator[WebDriver, None, None]:
+def driver(request, frontend_process, selenium_database) -> Generator[WebDriver, None, None]:
     """Selenium WebDriver fixture."""
-    if SELENIUM_BROWSER.lower() == "firefox":
-        drv = _create_firefox_driver()
+    import httpx
+    for _ in range(400):
+        health = httpx.get(f"{SELENIUM_API_URL}/api/v1/health", headers={"X-Local-Token": "test-token"}, timeout=2).json()
+        if health["data"]["running_scans"] == 0:
+            break
+        time.sleep(0.2)
     else:
-        drv = _create_chrome_driver()
+        pytest.fail("Previous Selenium scan did not finish")
+    with sqlite3.connect(selenium_database) as connection:
+        for table in ("scan_diff_log", "scan_items", "whitelist_entries", "scans", "port_scanner_config"):
+            connection.execute(f"DELETE FROM {table}")
+    headless = str(request.config.getoption("--selenium-headless", "true")).lower() != "false"
+    browser = str(request.config.getoption("--selenium-browser", "chrome")).lower()
+    if browser == "firefox":
+        drv = _create_firefox_driver(headless)
+    else:
+        drv = _create_chrome_driver(headless)
     drv.set_page_load_timeout(30)
     drv.implicitly_wait(5)
     yield drv
@@ -136,19 +173,6 @@ def wait_for_angular(driver: WebDriver):
     WebDriverWait(driver, 15).until(
         EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='app-shell'], .app-shell, #root > div"))
     )
-
-
-@pytest.fixture(autouse=True)
-def _setup_token(request):
-    if not request.config.getoption("--selenium"):
-        return
-    if request.node.get_closest_marker("selenium") is None:
-        return
-    driver = request.getfixturevalue("driver")
-    driver.get(SELENIUM_BASE_URL)
-    driver.execute_script("localStorage.setItem('local_token', 'test-token');")
-    driver.refresh()
-
 
 
 # Helper functions for tests
@@ -193,7 +217,7 @@ class PageHelpers:
         from selenium.webdriver.support import expected_conditions as EC
 
         btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button'], button:contains('Quét ngay'), .scan-button"))
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button']"))
         )
         btn.click()
 

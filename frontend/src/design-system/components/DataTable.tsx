@@ -118,7 +118,7 @@ export function DataTable<T>({
       ) : null}
 
       <div className="datatable-scroll" style={maxHeight ? { maxHeight } : undefined}>
-        <table className="datatable-table">
+        <table className="datatable-table" data-testid="data-table">
           <thead>
             <tr>
               {columns.map((col) => {

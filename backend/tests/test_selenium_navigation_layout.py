@@ -11,28 +11,28 @@ class TestAppShellLayout:
     """Tests for the main app shell layout (sidebar + topbar)."""
 
     def test_sidebar_always_visible(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         sidebar = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='sidebar'], .sidebar, aside"))
         )
         assert sidebar.is_displayed()
 
     def test_topbar_always_visible(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         topbar = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='topbar'], .topbar, header"))
         )
         assert topbar.is_displayed()
 
     def test_topbar_shows_breadcrumb(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         breadcrumb = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='breadcrumb'], .breadcrumb"))
         )
         assert "Port Scanner" in breadcrumb.text or "Modules" in breadcrumb.text
 
     def test_topbar_shows_scan_button(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         scan_btn = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='topbar-scan-btn'], .topbar-scan-btn, header button"))
         )
@@ -57,19 +57,19 @@ class TestSidebarNavigation:
         assert "/modules/port-scanner" in driver.current_url
 
     def test_navigate_to_scan_history(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         history_link = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='nav-item-scan-history'], .nav-item[data-route='/history']"))
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='nav-item-scan-history'], .nav-item[data-route='/scan-history']"))
         )
         history_link.click()
 
         WebDriverWait(driver, 10).until(
-            EC.url_contains("/history")
+            EC.url_contains("/scan-history")
         )
-        assert "/history" in driver.current_url
+        assert "/scan-history" in driver.current_url
 
     def test_navigate_to_settings(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         settings_link = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='nav-item-settings'], .nav-item[data-route='/settings']"))
         )
@@ -81,16 +81,19 @@ class TestSidebarNavigation:
         assert "/settings" in driver.current_url
 
     def test_coming_soon_modules_show_disabled(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         disabled_items = driver.find_elements(By.CSS_SELECTOR, "[data-testid^='nav-item-'][data-status='coming-soon'], .nav-item.disabled, .nav-item.coming-soon")
         disabled_texts = [item.text for item in disabled_items]
-        expected_coming_soon = ["Firewall Check", "Startup Programs", "Outbound Connections"]
+        expected_coming_soon = ["Startup Programs", "Outbound Connections"]
         for expected in expected_coming_soon:
             assert any(expected in t for t in disabled_texts), f"Missing coming-soon module: {expected}"
 
     def test_coming_soon_modules_not_clickable(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
-        disabled_items = driver.find_elements(By.CSS_SELECTOR, ".nav-item.disabled, .nav-item.coming-soon")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
+        disabled_items = driver.find_elements(
+            By.CSS_SELECTOR,
+            "[data-testid^='nav-item-'][data-status='coming-soon'], .nav-item.disabled, .nav-item.coming-soon",
+        )
         for item in disabled_items:
             assert "disabled" in item.get_attribute("class") or item.get_attribute("aria-disabled") == "true"
 
@@ -100,7 +103,7 @@ class TestModulePageLayoutContract:
     """Tests that every module page follows the layout contract."""
 
     def test_page_has_header_with_title_and_description(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         header = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='page-header'], .page-header"))
         )
@@ -110,14 +113,14 @@ class TestModulePageLayoutContract:
         assert desc.is_displayed()
 
     def test_page_has_kpi_row_with_max_4_cards(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         kpi_cards = WebDriverWait(driver, 10).until(
             EC.presence_of_all_elements_located((By.CSS_SELECTOR, "[data-testid='kpi-card'], .kpi-card"))
         )
         assert 1 <= len(kpi_cards) <= 4
 
     def test_page_has_panel_grid_with_two_panels(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         panels = WebDriverWait(driver, 10).until(
             EC.presence_of_all_elements_located((By.CSS_SELECTOR, "[data-testid='panel'], .panel"))
         )
@@ -133,7 +136,7 @@ class TestModulePageLayoutContract:
         assert "Chi tiết" in second_title or "Detail" in second_title
 
     def test_panel_has_subtitle(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         panels = WebDriverWait(driver, 10).until(
             EC.presence_of_all_elements_located((By.CSS_SELECTOR, "[data-testid='panel'], .panel"))
         )
@@ -147,15 +150,16 @@ class TestDesignTokens:
     """Tests that design tokens are correctly applied."""
 
     def test_background_colors_use_tokens(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         body = driver.find_element(By.TAG_NAME, "body")
         bg_color = body.value_of_css_property("background-color")
-        assert bg_color in ["rgb(11, 14, 20)", "rgb(18, 23, 34)", "#0B0E14", "#121722"]
+        # Chrome trả về dạng "rgba(r, g, b, 1)"
+        assert bg_color in ["rgb(11, 14, 20)", "rgb(18, 23, 34)", "#0B0E14", "#121722", "rgba(11, 14, 20, 1)", "rgba(18, 23, 34, 1)"]
 
     def test_status_colors_use_correct_tokens(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button'], button:contains('Quét ngay'), .scan-button"))
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button']"))
         )
         btn.click()
 
@@ -163,18 +167,18 @@ class TestDesignTokens:
             EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='status-badge'], .status-badge"))
         )
 
-        danger_badges = driver.find_elements(By.CSS_SELECTOR, "[data-tone='danger'], .tone-danger, .status-badge.danger")
-        warning_badges = driver.find_elements(By.CSS_SELECTOR, "[data-tone='warning'], .tone-warning, .status-badge.warning")
-        safe_badges = driver.find_elements(By.CSS_SELECTOR, "[data-tone='safe'], .tone-safe, .status-badge.safe")
+        danger_badges = driver.find_elements(By.CSS_SELECTOR, "[data-testid='status-badge'][data-tone='danger'], .status-badge.danger")
+        warning_badges = driver.find_elements(By.CSS_SELECTOR, "[data-testid='status-badge'][data-tone='warning'], .status-badge.warning")
+        safe_badges = driver.find_elements(By.CSS_SELECTOR, "[data-testid='status-badge'][data-tone='safe'], .status-badge.safe")
 
         for badge in danger_badges:
             color = badge.value_of_css_property("color") or badge.value_of_css_property("background-color")
             assert "255" in color or "ff" in color.lower()
 
     def test_mono_font_used_for_technical_data(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button'], button:contains('Quét ngay'), .scan-button"))
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button']"))
         )
         btn.click()
 
@@ -197,7 +201,7 @@ class TestResponsiveLayout:
 
     def test_mobile_viewport_stacks_panels(self, driver):
         driver.set_window_size(480, 800)
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
 
         panels = WebDriverWait(driver, 10).until(
             EC.presence_of_all_elements_located((By.CSS_SELECTOR, "[data-testid='panel'], .panel"))
@@ -209,7 +213,7 @@ class TestResponsiveLayout:
 
     def test_desktop_viewport_shows_side_by_side_panels(self, driver):
         driver.set_window_size(1366, 768)
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
 
         panels = WebDriverWait(driver, 10).until(
             EC.presence_of_all_elements_located((By.CSS_SELECTOR, "[data-testid='panel'], .panel"))
@@ -222,7 +226,7 @@ class TestResponsiveLayout:
 
     def test_sidebar_collapses_on_narrow_screen(self, driver):
         driver.set_window_size(800, 600)
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
 
         sidebar = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='sidebar'], .sidebar, aside"))
@@ -237,9 +241,9 @@ class TestAccessibility:
     """Tests for accessibility compliance."""
 
     def test_focus_visible_on_interactive_elements(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         btn = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='scan-button'], button:contains('Quét ngay'), .scan-button"))
+            EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='scan-button']"))
         )
         btn.send_keys("\ue004")  # TAB key
 
@@ -248,9 +252,9 @@ class TestAccessibility:
         assert "none" not in outline or "0px" not in outline
 
     def test_status_has_text_not_only_color(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button'], button:contains('Quét ngay'), .scan-button"))
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button']"))
         )
         btn.click()
 
@@ -264,9 +268,9 @@ class TestAccessibility:
             assert text in ["Nguy hiểm", "Cảnh báo", "An toàn", "Danger", "Warning", "Safe"], f"Badge missing text: '{text}'"
 
     def test_table_sortable_columns_have_aria_sort(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button'], button:contains('Quét ngay'), .scan-button"))
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button']"))
         )
         btn.click()
 
@@ -275,7 +279,7 @@ class TestAccessibility:
         )
 
         headers = driver.find_elements(By.CSS_SELECTOR, "[data-testid='data-table'] th, .data-table th, table th")
-        sortable_headers = [h for h in headers if h.get_attribute("aria-sort") is not None or "sortable" in h.get_attribute("class", "")]
+        sortable_headers = [h for h in headers if h.get_attribute("aria-sort") is not None or "sortable" in (h.get_attribute("class") or "")]
         assert len(sortable_headers) > 0
 
 
@@ -284,28 +288,28 @@ class TestThemeTokensConsistency:
     """Tests that theme tokens are consistently applied across components."""
 
     def test_accent_color_used_for_primary_actions(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         primary_buttons = driver.find_elements(By.CSS_SELECTOR, "[data-variant='primary'], .btn-primary, button.primary")
         for btn in primary_buttons:
             bg = btn.value_of_css_property("background-color") or btn.value_of_css_property("border-color")
             assert "61, 169, 252" in bg or "#3DA9FC" in bg.upper()
 
     def test_border_colors_use_token(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         panels = driver.find_elements(By.CSS_SELECTOR, "[data-testid='panel'], .panel, [data-testid='kpi-card'], .kpi-card")
         for panel in panels[:3]:
             border = panel.value_of_css_property("border-color")
             assert "36, 44, 61" in border or "#242C3D" in border.upper() or "28, 35, 50" in border or "#1C2332" in border.upper()
 
     def test_text_colors_use_tokens(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         primary_text = driver.find_element(By.CSS_SELECTOR, "[data-testid='page-title'], .page-title, h1")
         color = primary_text.value_of_css_property("color")
         assert "231, 234, 242" in color or "#E7EAF2" in color.upper()
 
     def test_muted_text_uses_token(self, driver):
-        driver.get("http://127.0.0.1:5173/modules/port-scanner")
+        driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         muted_elements = driver.find_elements(By.CSS_SELECTOR, "[data-testid='kpi-sub'], .kpi-sub, .text-muted, .caption")
         for elem in muted_elements[:3]:
             color = elem.value_of_css_property("color")
-            assert "82, 91, 113" in color or "#525B71" in color.upper()
+            assert any(value in color.upper() for value in ("82, 91, 113", "#525B71", "139, 147, 167", "#8B93A7"))

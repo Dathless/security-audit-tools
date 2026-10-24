@@ -13,7 +13,7 @@ interface ErrorBannerProps {
 /** Banner lỗi/cảnh báo ngay dưới topbar: nói rõ nguyên nhân + cách khắc phục. */
 export function ErrorBanner({ tone = "danger", title, message, action }: ErrorBannerProps): ReactElement {
   return (
-    <div className={`errbanner errbanner-${tone}`} role={tone === "danger" ? "alert" : "status"}>
+    <div className={`errbanner errbanner-${tone}`} data-testid="error-banner" data-tone={tone} role={tone === "danger" ? "alert" : "status"}>
       <div className="errbanner-text">
         <strong className="errbanner-title">{title}</strong>
         <p className="errbanner-message">{message}</p>

@@ -18,7 +18,7 @@ interface StatusBadgeProps {
 /** Nhãn trạng thái: chấm màu + text (luôn có text để không loại trừ người mù màu). */
 export function StatusBadge({ tone, label }: StatusBadgeProps): ReactElement {
   return (
-    <span className={`badge badge-${tone}`} role="status">
+    <span className={`badge badge-${tone}`} data-testid="status-badge" data-tone={tone} role="status">
       <span className="badge-dot" aria-hidden="true" />
       <span className="badge-label">{label ?? TONE_LABEL[tone]}</span>
     </span>
