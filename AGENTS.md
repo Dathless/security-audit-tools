@@ -18,7 +18,9 @@ From `backend/`, run `pytest` for unit and API tests. Name tests `test_*.py`; mo
 
 ## Commit & Pull Request Guidelines
 
-Recent commits use short prefixes such as `docs:` and `chore:`; use an imperative, scoped subject, for example `feat: add firewall profile checks`. Keep unrelated working-tree changes out of the commit. PRs should explain behavior, relevant checks, and any security or compatibility impact; attach screenshots for visible UI changes and link an issue when one exists.
+Recent commits use short prefixes such as `docs:` and `chore:`; use an imperative subject with an optional scope, for example `feat: add firewall profile checks`. Keep unrelated working-tree changes out of the commit. PRs should explain behavior, relevant checks, and any security or compatibility impact; attach screenshots for visible UI changes and link an issue when one exists.
+
+Follow [CONTRIBUTING.md](CONTRIBUTING.md) for commit, review, validation, and push rules. Record notable shipped behavior or documentation changes in [CHANGELOG.md](CHANGELOG.md); keep planned features explicitly unimplemented.
 
 ## Security & Configuration
 

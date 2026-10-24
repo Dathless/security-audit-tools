@@ -2,6 +2,8 @@
 
 Đọc [README dự án](../README.md) để cài đặt và chạy ứng dụng. Thư mục này phân biệt thiết kế, kế hoạch chưa triển khai và bằng chứng kiểm thử; trạng thái thực tế cần đối chiếu với mã nguồn và tests.
 
+Quy tắc commit/PR và cập nhật tài liệu nằm trong [CONTRIBUTING.md](../CONTRIBUTING.md); các thay đổi đáng chú ý được ghi tại [CHANGELOG.md](../CHANGELOG.md).
+
 ## Bắt đầu từ đâu
 
 | Nhu cầu | Tài liệu |

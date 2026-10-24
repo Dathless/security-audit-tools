@@ -511,6 +511,8 @@ Startup Programs và Outbound Connections có vị trí `coming-soon` trong side
 
 | Tài liệu | Nội dung |
 |---|---|
+| [Hướng dẫn đóng góp](CONTRIBUTING.md) | Quy tắc commit/PR, kiểm chứng, tài liệu, dữ liệu local và push |
+| [Changelog](CHANGELOG.md) | Thay đổi đáng chú ý; phân biệt Unreleased với các mốc tích hợp lịch sử |
 | [Mục lục tài liệu](docs/README.md) | Cấu trúc, quy ước và điểm bắt đầu theo nhu cầu |
 | [Thiết kế backend](docs/architecture/backend.md) | Module system, API, luồng hoạt động, DB schema, xử lý lỗi |
 | [Kế hoạch Startup Programs](docs/plans/startup-programs.md) | Thiết kế module tiếp theo, nhật ký thay đổi và checklist triển khai |
