@@ -63,7 +63,7 @@ export function RadarMap({ dots, scanning = false }: RadarMapProps): ReactElemen
   };
 
   return (
-    <div className="radar">
+    <div className="radar" data-testid="radar-map">
       <svg
         className="radar-svg"
         viewBox="0 0 340 340"
@@ -109,6 +109,7 @@ export function RadarMap({ dots, scanning = false }: RadarMapProps): ReactElemen
             <circle
               key={`${d.port}-${d.severity}`}
               className={`radar-dot radar-dot-${d.severity}${pulse}`}
+              data-testid="radar-dot"
               cx={p.x}
               cy={p.y}
               r={d.severity === "safe" ? 3 : 4}

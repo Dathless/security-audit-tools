@@ -158,7 +158,7 @@ def _mark_failed(scan_id: str, code: str, message: str) -> None:
 def _previous_scan(session, module_id: str, exclude_scan_id: str) -> Optional[Scan]:
     return session.execute(
         select(Scan)
-        .where(Scan.module_id == module_id, Scan.id != exclude_scan_id)
+        .where(Scan.module_id == module_id, Scan.id != exclude_scan_id, Scan.status == "done", Scan.partial_result.is_(False))
         .order_by(Scan.started_at.desc())
         .limit(1)
     ).scalar_one_or_none()

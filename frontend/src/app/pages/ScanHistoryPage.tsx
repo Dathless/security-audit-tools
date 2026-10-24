@@ -5,13 +5,9 @@ import { DataTable, type DataColumn } from "../../design-system/components/DataT
 import { StatusBadge } from "../../design-system/components/StatusBadge";
 import { EmptyState } from "../../design-system/components/EmptyState";
 import { Button } from "../../design-system/components/Button";
-import { ApiError, fetchPortScans } from "../../modules/api";
+import { ApiError, fetchPortScans, fetchFirewallScans } from "../../modules/api";
 import { navigate } from "../../core/router";
 import type { ScanListItem } from "../../core/types/api";
-
-interface HistoryRow extends ScanListItem {
-  displayName: string;
-}
 
 function formatTime(iso: string | null): string {
   if (!iso) return "—";
@@ -20,7 +16,7 @@ function formatTime(iso: string | null): string {
   return d.toLocaleString("vi-VN");
 }
 
-const columns: DataColumn<HistoryRow>[] = [
+const columns: DataColumn<ScanListItem>[] = [
   { key: "started_at", label: "Thời gian", sortable: true, render: (r) => formatTime(r.started_at) },
   {
     key: "status",
@@ -42,17 +38,19 @@ const columns: DataColumn<HistoryRow>[] = [
 ];
 
 export function ScanHistoryPage(): ReactElement {
-  const [rows, setRows] = useState<HistoryRow[]>([]);
+  const [moduleId, setModuleId] = useState("port-scanner");
+  const [rows, setRows] = useState<ScanListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ApiError | null>(null);
 
   useEffect(() => {
     let mounted = true;
-    fetchPortScans(1, 50)
+    const fetchScans = moduleId === "firewall-check" ? fetchFirewallScans : fetchPortScans;
+    fetchScans(1, 50)
       .then((data) => {
         if (!mounted) return;
-        setRows(data.items.map((it) => ({ ...it, displayName: "Port Scanner" })));
+        setRows(data.items);
         setTotal(data.total);
         setError(null);
       })
@@ -65,10 +63,14 @@ export function ScanHistoryPage(): ReactElement {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [moduleId]);
+
+  const historyColumns = columns.map((column, index) => index === 2 && moduleId === "firewall-check"
+    ? { ...column, label: "Profiles / rules", render: (row: ScanListItem) => row.summary?.total_profiles != null ? `${row.summary.total_profiles} / ${row.summary.total_rules ?? 0}` : "—" }
+    : column);
 
   const kpis = [
-    { label: "Tổng lượt quét", value: loading ? "…" : total, sub: "Toàn bộ module" },
+    { label: "Tổng lượt quét", value: loading ? "…" : total, sub: moduleId === "firewall-check" ? "Firewall Check" : "Port Scanner" },
     {
       label: "Lượt gần nhất",
       value: rows[0] ? formatTime(rows[0].started_at) : "—",
@@ -79,9 +81,20 @@ export function ScanHistoryPage(): ReactElement {
   return (
     <ModulePageLayout
       title="Scan History"
-      description="Lịch sử tổng hợp các lượt quét của mọi module."
+      description="Xem lịch sử quét theo module."
       kpis={kpis}
     >
+      <label htmlFor="history-module">Module: </label>
+      <select id="history-module" value={moduleId} onChange={(event) => {
+        setRows([]);
+        setTotal(0);
+        setError(null);
+        setLoading(true);
+        setModuleId(event.target.value);
+      }}>
+        <option value="port-scanner">Port Scanner</option>
+        <option value="firewall-check">Firewall Check</option>
+      </select>
       {error ? (
         <EmptyState
           title="Không tải được lịch sử"
@@ -90,13 +103,13 @@ export function ScanHistoryPage(): ReactElement {
         />
       ) : (
         <DataTable
-          columns={columns}
+          columns={historyColumns}
           rows={rows}
           rowKey="id"
           searchPlaceholder="Lọc theo thời gian / kết quả"
           emptyText={loading ? "Đang tải…" : "Chưa có lượt quét nào."}
           renderColumn={() => (
-            <Button variant="subtle" size="sm" onClick={() => navigate("/modules/port-scanner")}>
+            <Button variant="subtle" size="sm" onClick={() => navigate(`/modules/${moduleId}`)}>
               Mở module
             </Button>
           )}

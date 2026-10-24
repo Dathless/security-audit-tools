@@ -8,6 +8,7 @@
   <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white" alt="Vite">
   <img src="https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?logo=tailwindcss&logoColor=white" alt="Tailwind CSS">
+  <img src="https://img.shields.io/badge/WebSocket-010101?logo=websocket&logoColor=white" alt="WebSocket">
   <img src="https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white" alt="SQLite">
 </div>
 
@@ -63,7 +64,7 @@ Kiến trúc **module hoá hai chiều** (backend + frontend) cho phép thêm m�
 
 ### Module Port Scanner (đang hoạt động)
 
-- **Quét cổng đang lắng nghe** trên máy bằng `psutil` (chế độ `socket`) hoặc `Nmap` (nếu được cài — tự fallback về `socket`).
+- **Quét cổng đang lắng nghe** trên máy bằng `psutil`, không cần cài Nmap.
 - **Phân loại rủi ro tự động**:
   - 🔴 `danger` — cổng nằm trong danh sách cổng rủi ro đã biết (mặc định `4444`, `1337`, `31337`, có thể tuỳ chỉnh).
   - 🟡 `warning` — đang lắng nghe trên mọi giao diện (`0.0.0.0` / `::`), hoặc không đọc được tên tiến trình do thiếu quyền.
@@ -142,7 +143,7 @@ Kết quả được lưu DB → so sánh diffing → UI cập nhật KPI + bả
 | Backend | Python 3.11 · FastAPI · Uvicorn · SQLAlchemy 2.0 · SQLite |
 | Real-time | WebSocket (Starlette) + Event Bus nội bộ (pub/sub) |
 | Lập lịch | APScheduler (AsyncIOScheduler) |
-| Quét hệ thống | `psutil` · `python-nmap` (tuỳ chọn) |
+| Quét hệ thống | `psutil` · Windows PowerShell / NetSecurity |
 | Cấu hình | YAML + Pydantic Settings |
 | Frontend | React 19 · TypeScript · Vite · Tailwind CSS v4 |
 | Quản lý gói frontend | pnpm |
@@ -174,11 +175,11 @@ Security-Audit-Tools/
 │   ├── modules/                  # Các module kiểm tra
 │   │   ├── port_scanner/         #   ✅ Đang hoạt động
 │   │   │   ├── manifest.py       #     khai báo module
-│   │   │   ├── scanner.py        #     implement ScannerBase (socket/nmap)
+│   │   │   ├── scanner.py        #     implement ScannerBase (psutil)
 │   │   │   ├── routes.py         #     REST riêng của module
 │   │   │   ├── models.py         #     bảng riêng: port_scanner_config
 │   │   │   └── tests/            #     test đi theo module
-│   │   ├── firewall_check/       #   ⏳ stub (chưa triển khai)
+│   │   ├── firewall_check/       #   Windows Firewall profiles + rules
 │   │   └── process_monitor/      #   ⏳ stub (chưa triển khai)
 │   ├── storage/                  # SQLAlchemy models + Database singleton
 │   │   ├── db.py                 #   Scan, ScanItem, WhitelistEntry, ScanDiffLog
@@ -206,7 +207,7 @@ Security-Audit-Tools/
 │       └── modules/              # Các module
 │           ├── _template/        #   mẫu để copy khi thêm module mới
 │           ├── port-scanner/     #   ✅ PortScannerPage + RadarMap + usePortScanner
-│           ├── firewall-check/   #   ⏳ coming-soon
+│           ├── firewall-check/   #   Windows Firewall dashboard
 │           ├── startup-programs/ #   ⏳ coming-soon
 │           └── outbound-connections/  # ⏳ coming-soon
 │
@@ -225,7 +226,7 @@ Security-Audit-Tools/
 - **Hệ điều hành**: Windows (mục tiêu chính) — về lý thuyết chạy được trên macOS/Linux nơi `psutil` hỗ trợ.
 - **Python** 3.11+ (phát triển trên 3.11).
 - **Node.js** 20+ và **pnpm** (phát triển trên Node 24 / pnpm 10).
-- **(Tuỳ chọn) Nmap**: nếu muốn dùng chế độ quét `nmap`. Không cài vẫn hoạt động — tự fallback về chế độ `socket`.
+- **Windows PowerShell / NetSecurity** có sẵn trên Windows cho Firewall Check. Port Scanner không cần Nmap.
 
 ---
 
@@ -277,6 +278,35 @@ pnpm preview   # xem thử bản build
 
 ## Cấu hình
 
+### Firewall Check v1
+
+Module `firewall-check` đọc ba profile Domain/Private/Public, xác định profile đang sử dụng và kiểm kê các rule đang bật từ Windows `ActiveStore`. Dữ liệu cổng, địa chỉ, chương trình và dịch vụ được lấy từ filter của từng rule. Chạy backend với quyền Administrator nếu Windows báo thiếu quyền đọc.
+
+- Profile đang dùng bị tắt hoặc mặc định inbound Allow: `danger`; profile chưa dùng có cùng cấu hình: `warning`.
+- Rule inbound Allow trên Public/Any, mọi nguồn và mọi cổng TCP/UDP/Any: `warning`. Outbound Allow mặc định không bị coi là bất thường.
+- Policy `NotConfigured`: chưa đủ dữ liệu kết luận, hiển thị `warning`. Nhãn không có phát hiện chỉ áp dụng tiêu chí v1.
+- Chỉ đọc cấu hình, có hướng dẫn kiểm tra thủ công; chưa kiểm chứng truy cập từ Internet hoặc tính hiệu lực tổng hợp của mọi rule.
+- Scan History cho phép chọn Port Scanner hoặc Firewall Check. Các lượt scan lỗi/thiếu dữ liệu không được dùng làm mốc diff cho lượt tiếp theo.
+
+API dùng `X-Local-Token`, envelope và WebSocket như Port Scanner:
+
+Hai kênh WebSocket `/ws/scan/{scan_id}` và `/ws/events` kiểm tra token trước khi accept. Browser gửi subprotocols `sec-audit` và `token.<encodeURIComponent(localToken)>`; server chọn `sec-audit`. Client ngoài browser có thể dùng header `X-Local-Token`. Origin của browser phải thuộc `allowed_origins`. Token không nằm trong URL; client WebSocket cũ cần cập nhật handshake.
+
+| Method | Đường dẫn | Kết quả |
+|---|---|---|
+| POST | `/api/v1/modules/firewall-check/scan` | `{scan_id}`; chạy nền, chỉ đọc Windows |
+| GET | `/api/v1/modules/firewall-check/scans/latest` | Scan gần nhất hoặc `null` |
+| GET | `/api/v1/modules/firewall-check/scans/{scan_id}` | Scan của module; không tồn tại/khác module trả 404 |
+| GET | `/api/v1/modules/firewall-check/scans` | `{items,page,page_size,total}`; mặc định 1/20, tối đa 100 mục/trang |
+
+Scan giữ cấu trúc `id/status/started_at/finished_at/summary/partial_result/error_message/items`. Summary firewall là `{total_profiles,total_rules,danger,warning,safe}`; Port Scanner vẫn trả `total_open`. Mỗi item có `detail.kind` là `profile` hoặc `rule`, `reasons` và `guidance`. Rule giữ định danh ổn định, profile, chiều/hành động, giao thức, cổng và địa chỉ hai đầu, chương trình, dịch vụ và nguồn policy. V1 đánh dấu xuất hiện/biến mất theo định danh, chưa lưu diff từng thuộc tính.
+
+Lỗi collector được lưu thành lượt scan `error` và phát sự kiện lỗi: `UNSUPPORTED_PLATFORM`, `SCAN_PERMISSION_DENIED`, `FIREWALL_UNAVAILABLE`, `FIREWALL_TIMEOUT`, `FIREWALL_QUERY_FAILED`, `FIREWALL_INVALID_DATA`. Timeout là 60 giây; dữ liệu không hợp lệ không được biến thành kết quả an toàn. Không có endpoint sửa firewall hoặc whitelist firewall.
+
+Port Scanner dùng `psutil` và không cần Nmap. Cấu hình cũ `scan_mode: nmap` được chuyển sang `socket` kèm cảnh báo log; giữ cột database cũ và dữ liệu lịch sử.
+
+Kết quả mới giữ `ip` và `note` cho client cũ, đồng thời cung cấp `listener` và `reasons`. Giao diện vẫn đọc được snapshot cũ chỉ có `ip/note`, không cần quét lại. Tên executable không đủ để suy ra dịch vụ đang dùng giao thức nào, nên không gắn cảnh báo chỉ vì tên tiến trình khác tên dịch vụ thường gắn với cổng.
+
 Tất cả cấu hình nằm trong `backend/config.yaml`:
 
 ```yaml
@@ -297,11 +327,10 @@ modules:
   port-scanner:
     enabled: true
     schedule: null             # ví dụ "0 */6 * * *" để tự quét mỗi 6 giờ
-    scan_mode: socket          # "socket" (mặc định) | "nmap"
     known_risky_ports: [4444, 1337, 31337]
     max_ports: 1024
   firewall-check:
-    enabled: false             # module chưa triển khai
+    enabled: true              # kiểm tra firewall, chỉ đọc
   process-monitor:
     enabled: false
 ```
@@ -462,8 +491,8 @@ pnpm build    # chạy tsc -b trước khi vite build → check type
 
 ## Lộ trình
 
-- [x] **Port Scanner** — quét socket/nmap, whitelist, diffing, real-time, radar map, scan history, settings.
-- [ ] **Firewall Check** — kiểm tra trạng thái Windows Firewall và các rule đang hoạt động.
+- [x] **Port Scanner** — kiểm kê TCP/UDP bằng psutil, whitelist, diffing, real-time, radar map, scan history, settings.
+- [x] **Firewall Check** — profile đang dùng, trạng thái/policy, rule đang bật, giải thích cảnh báo và lịch sử.
 - [ ] **Startup Programs** — liệt kê và đánh giá chương trình tự khởi động cùng Windows.
 - [ ] **Outbound Connections** — theo dõi kết nối ra ngoài đang hoạt động.
 - [ ] **Process Monitor** — theo dõi tiến trình.

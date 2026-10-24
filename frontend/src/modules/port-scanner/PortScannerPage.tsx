@@ -18,8 +18,8 @@ interface Row extends ScanItem {
   _pidText: string;
   _processText: string;
   _proto: string;
-  _ip: string;
-  _note: string;
+  _listener: string;
+  _reasons: string[];
 }
 
 /** Một dòng hiển thị = MỘT CỔNG (group các item theo port), list tiến trình kèm theo. */
@@ -29,8 +29,8 @@ interface PortRow {
   severity: Severity;
   processText: string;
   protoText: string;
-  ipText: string;
-  noteText: string;
+  listenerText: string;
+  reasonsText: string;
   isNew: boolean;
   items: Row[];
   allSafe: boolean;
@@ -44,8 +44,8 @@ function toRow(item: ScanItem): Row {
     _pidText: d.pid != null ? String(d.pid) : "—",
     _processText: d.process_name || (d.permission_denied ? "(cần admin)" : "—"),
     _proto: d.protocol || "—",
-    _ip: d.ip || "—",
-    _note: d.note || "",
+    _listener: d.listener || d.ip || "—",
+    _reasons: Array.isArray(d.reasons) ? d.reasons : d.note ? [d.note] : [],
   };
 }
 
@@ -85,8 +85,8 @@ function groupByPort(rows: Row[], severityOf: (item: ScanItem) => Severity): Por
       severity: sev,
       processText: processList.join(", ") || "—",
       protoText: uniq(items.map((r) => r._proto)).join(", ") || "—",
-      ipText: uniq(items.map((r) => r._ip)).join(", ") || "—",
-      noteText: uniq(items.map((r) => r._note)).join("; ") || "",
+      listenerText: uniq(items.map((r) => r._listener)).join(", ") || "—",
+      reasonsText: uniq(items.flatMap((r) => r._reasons)).join(", ") || "",
       isNew: items.some((r) => r.is_new),
       items,
       allSafe: items.every((r) => severityOf(r) === "safe"),
@@ -159,12 +159,13 @@ export function PortScannerPage(): ReactElement {
     { key: "port", label: "Cổng", mono: true, align: "right", sortable: true },
     { key: "processText", label: "Tiến trình (PID)", mono: true, sortable: true },
     { key: "protoText", label: "Giao thức", mono: true, sortable: true },
+    { key: "listenerText", label: "Listener", mono: true, sortable: true },
     {
       key: "isNew",
       label: "Mới",
       render: (r) => (r.isNew ? <span className="badge-new">NEW</span> : <span className="text-muted">—</span>),
     },
-    { key: "noteText", label: "Ghi chú" },
+    { key: "reasonsText", label: "Lý do" },
   ];
 
   const whitelistById = new Map(whitelist.map((w) => [w.whitelist_key, w]));
@@ -183,11 +184,11 @@ export function PortScannerPage(): ReactElement {
     return (
       <div className="row-actions">
         {allMarkedSafe ? (
-          <Button variant="subtle" size="sm" onClick={() => safeEntries.forEach((e) => void unmarkSafe(e.id))}>
+          <Button variant="subtle" size="sm" data-testid="mark-safe-btn" onClick={() => safeEntries.forEach((e) => void unmarkSafe(e.id))}>
             Bỏ an toàn
           </Button>
         ) : (
-          <Button variant="ghost" size="sm" onClick={() => r.items.forEach((i) => void markSafe(i))}>
+          <Button variant="ghost" size="sm" data-testid="mark-safe-btn" onClick={() => r.items.forEach((i) => void markSafe(i))}>
             Đánh dấu an toàn
           </Button>
         )}
@@ -232,10 +233,12 @@ export function PortScannerPage(): ReactElement {
               description={error?.message ?? "Không tải được lượt quét gần nhất từ backend."}
               action={
                 <>
-                  <Button variant="ghost" onClick={() => retryLoad()}>
+                  <Button variant="ghost" data-testid="retry-btn" onClick={() => retryLoad()}>
                     Tải lại
                   </Button>{" "}
-                  <Button onClick={() => void startScan()}>Quét ngay</Button>
+                  <Button data-testid="scan-button" onClick={() => void startScan()}>
+                    Quét ngay
+                  </Button>
                 </>
               }
             />
@@ -243,7 +246,11 @@ export function PortScannerPage(): ReactElement {
             <EmptyState
               title="Chưa có dữ liệu quét"
               description="Chưa có lượt quét nào. Bấm 'Quét ngay' để kiểm tra các cổng đang lắng nghe trên máy này."
-              action={<Button onClick={() => void startScan()}>Quét ngay</Button>}
+              action={
+                <Button data-testid="scan-button" onClick={() => void startScan()}>
+                  Quét ngay
+                </Button>
+              }
             />
           ) : (
             <DataTable

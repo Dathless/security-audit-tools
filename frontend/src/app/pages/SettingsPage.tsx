@@ -6,9 +6,9 @@ import { PanelGrid } from "../../design-system/components/PanelGrid";
 import { Button } from "../../design-system/components/Button";
 import { StatusBadge } from "../../design-system/components/StatusBadge";
 import { ErrorBanner } from "../../design-system/components/ErrorBanner";
-import { fetchModules, getLocalToken, setLocalToken } from "../../modules/api";
+import { fetchModules, fetchWhitelist, getLocalToken, setLocalToken } from "../../modules/api";
 import { useAppState } from "../../core/appStore";
-import type { BackendModule } from "../../core/types/api";
+import type { BackendModule, WhitelistEntry } from "../../core/types/api";
 import "./SettingsPage.css";
 
 export function SettingsPage(): ReactElement {
@@ -16,11 +16,18 @@ export function SettingsPage(): ReactElement {
   const [token, setToken] = useState(getLocalToken());
   const [saved, setSaved] = useState(false);
   const [modules, setModules] = useState<BackendModule[]>([]);
+  const [whitelist, setWhitelist] = useState<WhitelistEntry[]>([]);
 
   useEffect(() => {
     fetchModules()
       .then(setModules)
       .catch(() => setModules([]));
+  }, []);
+
+  useEffect(() => {
+    fetchWhitelist()
+      .then(setWhitelist)
+      .catch(() => setWhitelist([]));
   }, []);
 
   function onSave(e: FormEvent): void {
@@ -75,6 +82,23 @@ export function SettingsPage(): ReactElement {
                 <li key={m.id} className="settings-module">
                   <span className="settings-module-name">{m.display_name}</span>
                   <StatusBadge tone={m.enabled ? "safe" : "info"} label={m.enabled ? "Đang bật" : "Đã tắt"} />
+                </li>
+              ))
+            )}
+          </ul>
+        </Panel>
+
+        <Panel title="Whitelist" subtitle="Các mục đã đánh dấu an toàn, được giữ qua các lượt quét.">
+          <ul className="whitelist-list" data-testid="whitelist-list">
+            {whitelist.length === 0 ? (
+              <li className="whitelist-item" data-testid="whitelist-item">
+                <span className="whitelist-empty">Chưa có mục nào trong whitelist.</span>
+              </li>
+            ) : (
+              whitelist.map((w) => (
+                <li key={w.id} className="whitelist-item" data-testid="whitelist-item">
+                  <span className="whitelist-label">{w.label || w.whitelist_key}</span>
+                  <StatusBadge tone="safe" label="An toàn" />
                 </li>
               ))
             )}

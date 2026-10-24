@@ -38,16 +38,20 @@ export function ModulePageLayout({
     <div className="mp-layout">
       {banner ? <div className="mp-banner">{banner}</div> : null}
 
-      <header className="mp-header">
+      <header className="mp-header" data-testid="page-header">
         <div>
-          <h2 className="mp-title">{title}</h2>
-          <p className="mp-desc">{description}</p>
+          <h2 className="mp-title" data-testid="page-title">
+            {title}
+          </h2>
+          <p className="mp-desc" data-testid="page-description">
+            {description}
+          </p>
         </div>
         {actions ? <div className="mp-actions">{actions}</div> : null}
       </header>
 
       {kpis && kpis.length > 0 ? (
-        <div className="kpi-row">
+        <div className="kpi-row" data-testid="kpi-row">
           {kpis.map((kpi) => (
             <KpiCard key={kpi.label} {...kpi} />
           ))}

@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import shutil
 import socket
 from datetime import datetime
 
@@ -17,6 +16,12 @@ logger = logging.getLogger(__name__)
 
 ANY_IP = {"0.0.0.0", "::"}
 
+REASON_NOTES = {
+    "PORT_IN_RISKY_LIST": "Nằm trong danh sách cổng rủi ro đã biết",
+    "LISTENING_ON_ALL_INTERFACES": "Đang lắng nghe trên mọi giao diện (0.0.0.0/::)",
+    "PROCESS_IDENTIFICATION_FAILED": "Cần quyền Administrator để lấy tên tiến trình",
+}
+
 
 class PortScannerModule(ScannerBase):
     module_id = "port-scanner"
@@ -24,7 +29,9 @@ class PortScannerModule(ScannerBase):
 
     def __init__(self) -> None:
         settings = config.module("port-scanner")
-        self.scan_mode = str(settings.get("scan_mode", "socket"))
+        self.scan_mode = "socket"
+        if settings.get("scan_mode") == "nmap":
+            logger.warning("scan_mode=nmap đã ngừng hỗ trợ; chuyển sang psutil (socket).")
         self.known_risky_ports = {
             int(p) for p in (settings.get("known_risky_ports", []) or [4444, 1337, 31337])
         }
@@ -37,14 +44,17 @@ class PortScannerModule(ScannerBase):
         items: list[ScanResultItem] = []
         total = len(entries) or 1
         for idx, entry in enumerate(entries, start=1):
-            severity, note = self._classify(entry)
+            severity, reasons = self._classify(entry)
             detail = {
                 "port": entry["port"],
+                "listener": entry["ip"],
                 "ip": entry["ip"],
                 "pid": entry["pid"],
                 "process_name": entry["process_name"],
                 "protocol": entry["protocol"],
-                "note": note,
+                "reasons": reasons,
+                # Preserve the pre-reason-code API fields for existing clients.
+                "note": REASON_NOTES[reasons[0]] if reasons else "Port mở thông thường (loopback/nội bộ)",
                 "permission_denied": entry["permission_denied"],
             }
             items.append(
@@ -82,11 +92,6 @@ class PortScannerModule(ScannerBase):
 
     # ------------------------------------------------------------------ collect
     async def _collect(self, progress_cb) -> list[dict]:
-        if self.scan_mode == "nmap" and shutil.which("nmap"):
-            try:
-                return await asyncio.to_thread(self._scan_nmap)
-            except Exception:  # noqa: BLE001
-                logger.exception("Nmap quét lỗi — fallback về chế độ socket")
         if progress_cb:
             await progress_cb(0, 1, "Đang đọc danh sách kết nối (chế độ socket)...")
         try:
@@ -129,30 +134,6 @@ class PortScannerModule(ScannerBase):
         entries.sort(key=lambda e: e["port"])
         return entries
 
-    def _scan_nmap(self) -> list[dict]:
-        import nmap
-
-        host = "127.0.0.1"
-        ports = _nmap_ports(self.known_risky_ports)
-        scanner = nmap.PortScanner()
-        scanner.scan(hosts=host, ports=ports, arguments="-sT -Pn --open -T4")
-        host_data = scanner["scan"].get(host, {}) or {}
-        entries: list[dict] = []
-        for port_str, info in host_data.get("tcp", {}).items():
-            if info.get("state") != "open":
-                continue
-            entries.append(
-                {
-                    "port": int(port_str),
-                    "ip": host,
-                    "pid": None,
-                    "process_name": "",
-                    "protocol": "tcp",
-                    "permission_denied": False,
-                }
-            )
-        return entries
-
     @staticmethod
     def _process_name(pid: int | None) -> tuple[str, bool]:
         if not pid:
@@ -165,15 +146,27 @@ class PortScannerModule(ScannerBase):
             return "", False
 
     # ----------------------------------------------------------------- classify
-    def _classify(self, entry: dict) -> tuple[str, str]:
+    def _classify(self, entry: dict) -> tuple[str, list[str]]:
+        """Evaluate risky ports, listener scope and process metadata permissions."""
+        reasons: list[str] = []
         port = entry["port"]
+
+        # Rule 4.1 — Risky Port
         if port in self.known_risky_ports:
-            return "danger", "Nằm trong danh sách cổng rủi ro đã biết"
+            reasons.append("PORT_IN_RISKY_LIST")
+            return "danger", reasons
+
+        # Rule 4.2 — Listener Scope
         if entry["ip"] in ANY_IP:
-            return "warning", "Đang lắng nghe trên mọi giao diện (0.0.0.0/::)"
+            reasons.append("LISTENING_ON_ALL_INTERFACES")
+            return "warning", reasons
+
+        # Rule 4.3 — Process Identification
         if entry["permission_denied"]:
-            return "warning", "Cần quyền Administrator để lấy tên tiến trình"
-        return "safe", "Port mở thông thường (loopback/nội bộ)"
+            reasons.append("PROCESS_IDENTIFICATION_FAILED")
+            return "warning", reasons
+
+        return "safe", reasons
 
     # ----------------------------------------------------------------- snapshot
     def _record_config(self) -> None:
@@ -195,14 +188,6 @@ class PortScannerModule(ScannerBase):
         if process_name:
             return f"{port}:{process_name}"
         return str(port)
-
-
-def _nmap_ports(risky: set[int]) -> str:
-    ranges = "1-1024"
-    extra = [p for p in risky if p > 1024]
-    if extra:
-        return f"{ranges},{','.join(str(p) for p in sorted(extra))}"
-    return ranges
 
 
 def _build_summary(items: list[ScanResultItem]) -> dict:

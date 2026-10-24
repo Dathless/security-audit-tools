@@ -10,7 +10,7 @@ interface EmptyStateProps {
 /** Trạng thái khi module chưa có dữ liệu quét — không để trắng trang. */
 export function EmptyState({ title, description, action }: EmptyStateProps): ReactElement {
   return (
-    <div className="empty-state">
+    <div className="empty-state" data-testid="empty-state">
       <span className="empty-state-icon" aria-hidden="true">
         ⌁
       </span>

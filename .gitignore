@@ -56,6 +56,9 @@ exports/
 Thumbs.db
 desktop.ini
 
+# Documentation and coverage reports
+docs/
+
 # Editor and IDE files
 .vscode/*
 !.vscode/extensions.json

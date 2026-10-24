@@ -1,3 +1,7 @@
+# Current implementation note
+
+Firewall Check v1 is implemented in `modules/firewall_check/`, using a fixed, read-only Windows PowerShell query and the existing ScannerBase/executor/storage/WebSocket pipeline. The four authenticated endpoints and JSON fields are documented in the root README and FastAPI OpenAPI descriptions. `api/scan_results.py` serializes results for both modules. Diff baselines use only completed, full snapshots. Port Scanner now uses psutil only; legacy Nmap configuration is converted without deleting historical data. Earlier future-module references below describe the initial design.
+
 # BACKEND.md — Security Audit Tool
 
 Tài liệu thiết kế chi tiết backend. Đi kèm `DESIGN.md` (thiết kế UI) và `requirements.txt`.
@@ -306,7 +310,6 @@ modules:
   port-scanner:
     enabled: true
     schedule: null        # ví dụ "0 */6 * * *" nếu muốn tự quét mỗi 6h
-    scan_mode: socket      # "socket" (tự quét bằng socket, không cần cài gì) | "nmap" (cần cài Nmap)
     known_risky_ports: [4444, 1337, 31337]
   firewall-check:
     enabled: false          # module chưa triển khai, nằm sẵn để bật lên khi code xong
@@ -319,7 +322,7 @@ Mỗi module đọc đúng section `modules.<module_id>` của mình qua `pydant
 ## 8. Xử lý lỗi & permission
 
 - Đọc toàn bộ `psutil.net_connections()` với thông tin process đầy đủ trên Windows **cần quyền Administrator** — nếu thiếu quyền, `psutil` trả `AccessDenied` cho một số tiến trình. Backend xử lý: vẫn trả kết quả các port đọc được, đồng thời gắn cờ `partial_result: true` + thông báo rõ trong response để UI hiện banner cảnh báo (đúng theo `EmptyState`/error banner đã mô tả trong `DESIGN.md`).
-- `python-nmap` yêu cầu binary Nmap cài sẵn trên máy — nếu không tìm thấy, module tự fallback về chế độ `socket` (đã khai trong `scan_mode`), không để lỗi 500 crash toàn bộ scan.
+- Port Scanner chỉ dùng psutil. `scan_mode: nmap` từ cấu hình cũ được chuyển sang `socket` với cảnh báo log; giữ cột database cũ để tránh migration.
 - Mọi exception trong `module.run()` được bọc bởi executor chung ở `core/` (không phải từng module tự try/except riêng lẻ), đảm bảo 1 module lỗi không làm sập cả app, và luôn trả về đúng envelope lỗi chuẩn ở mục 4.
 
 ---

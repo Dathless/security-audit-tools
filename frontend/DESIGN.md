@@ -1,5 +1,7 @@
 # DESIGN.md — Security Audit Tool
 
+> Hiện tại Firewall Check đã hoạt động và dùng chung layout, design tokens và component bên dưới. Startup Programs và Outbound Connections vẫn là placeholder. Các phần mô tả module chỉ có Port Scanner phản ánh thiết kế ban đầu.
+
 Tài liệu thiết kế giao diện cho công cụ kiểm tra bảo mật laptop Windows cá nhân.
 Xem bản mockup trực quan tại `dashboard-mockup.html` (đi kèm cùng tài liệu này).
 

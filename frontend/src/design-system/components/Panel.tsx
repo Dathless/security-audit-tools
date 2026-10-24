@@ -12,11 +12,17 @@ interface PanelProps {
 /** Khối nội dung bo góc lớn: title + subtitle + slot nội dung. */
 export function Panel({ title, subtitle, actions, children, className = "" }: PanelProps): ReactElement {
   return (
-    <section className={`panel ${className}`}>
+    <section className={`panel ${className}`} data-testid="panel">
       <header className="panel-head">
         <div className="panel-title-group">
-          <h3 className="panel-title">{title}</h3>
-          {subtitle ? <p className="panel-subtitle">{subtitle}</p> : null}
+          <h3 className="panel-title" data-testid="panel-title">
+            {title}
+          </h3>
+          {subtitle ? (
+            <p className="panel-subtitle" data-testid="panel-subtitle">
+              {subtitle}
+            </p>
+          ) : null}
         </div>
         {actions ? <div className="panel-actions">{actions}</div> : null}
       </header>

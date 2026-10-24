@@ -14,14 +14,22 @@ interface KpiCardProps {
 /** Thẻ chỉ số KPI: label uppercase + số lớn mono + ghi chú. */
 export function KpiCard({ label, value, sub, tone = "default", loading }: KpiCardProps): ReactElement {
   return (
-    <div className={`kpi-card kpi-${tone}`}>
-      <span className="kpi-label">{label}</span>
+    <div className={`kpi-card kpi-${tone}`} data-testid="kpi-card" data-tone={tone}>
+      <span className="kpi-label" data-testid="kpi-label">
+        {label}
+      </span>
       {loading ? (
         <span className="kpi-value kpi-skeleton" aria-hidden="true" />
       ) : (
-        <span className="kpi-value">{value}</span>
+        <span className="kpi-value" data-testid="kpi-value">
+          {value}
+        </span>
       )}
-      {sub ? <span className="kpi-sub">{sub}</span> : null}
+      {sub ? (
+        <span className="kpi-sub" data-testid="kpi-sub">
+          {sub}
+        </span>
+      ) : null}
     </div>
   );
 }

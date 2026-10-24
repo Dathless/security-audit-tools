@@ -49,3 +49,56 @@ def client(clean_db):
     with TestClient(app) as tc:
         tc.headers["X-Local-Token"] = "test-token"
         yield tc
+
+
+@pytest.fixture()
+def client_no_raise(clean_db):
+    """TestClient không re-raise server exception — dùng cho test 500 error envelope."""
+    from fastapi.testclient import TestClient
+
+    from main import app
+
+    with TestClient(app, raise_server_exceptions=False) as tc:
+        tc.headers["X-Local-Token"] = "test-token"
+        yield tc
+
+
+@pytest.fixture()
+def patch_psutil(monkeypatch):
+    """Patch `psutil` trong modules/port_scanner/scanner.py bằng FakePsutil.
+
+    Trả về callable: patch_psutil(conns=None, proc_map=None, deny_net=False).
+    """
+    from helpers import FakePsutil
+
+    def _patch(conns=None, proc_map=None, deny_net=False):
+        fake = FakePsutil(conns, proc_map)
+        fake.deny_net = deny_net
+        monkeypatch.setattr("modules.port_scanner.scanner.psutil", fake)
+        return fake
+
+    return _patch
+
+
+@pytest.fixture()
+def port_manifest():
+    from core.module_registry import discover_modules
+
+    return discover_modules()["port-scanner"]
+
+
+@pytest.fixture()
+def event_collector():
+    """Thu thập các event phát qua event_bus trong lúc test chạy (pattern scan.#)."""
+    from core.event_bus import event_bus
+
+    collected: list[tuple[str, dict]] = []
+    unsubs = []
+
+    async def _collect(topic, message):
+        collected.append((topic, message))
+
+    unsubs.append(event_bus.subscribe("scan.#", _collect))
+    yield collected
+    for unsub in unsubs:
+        unsub()
