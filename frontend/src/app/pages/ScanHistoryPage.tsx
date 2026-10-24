@@ -65,9 +65,13 @@ export function ScanHistoryPage(): ReactElement {
     };
   }, [moduleId]);
 
-  const historyColumns = columns.map((column, index) => index === 2 && moduleId === "firewall-check"
-    ? { ...column, label: "Profiles / rules", render: (row: ScanListItem) => row.summary?.total_profiles != null ? `${row.summary.total_profiles} / ${row.summary.total_rules ?? 0}` : "—" }
-    : column);
+  const portLabels: Record<number, string> = { 2: "Endpoint", 3: "Ưu tiên cao", 5: "Không có phát hiện" };
+  const historyColumns = columns.map((column, index) => {
+    if (moduleId === "port-scanner") return { ...column, label: portLabels[index] ?? column.label };
+    return index === 2
+      ? { ...column, label: "Profiles / rules", render: (row: ScanListItem) => row.summary?.total_profiles != null ? `${row.summary.total_profiles} / ${row.summary.total_rules ?? 0}` : "—" }
+      : column;
+  });
 
   const kpis = [
     { label: "Tổng lượt quét", value: loading ? "…" : total, sub: moduleId === "firewall-check" ? "Firewall Check" : "Port Scanner" },

@@ -1,5 +1,7 @@
 # Current implementation note
 
+Port Scanner 0.2.0 uses endpoint identity v2 and review independent of severity. Current executable coverage includes `modules/port_scanner/tests/test_upgrade.py`, `test_reviews.py`, `tests/test_port_upgrade_pipeline.py` and `tests/test_selenium_port_upgrade.py`; see the [upgrade evidence](reports/port-scanner-upgrade.md). Whitelist overrides and old risky-loopback rules below are superseded, not new requirements.
+
 Status checked against main on 2026-10-24: use the existing backend/module tests as the executable source of truth. The [Firewall/Nmap report](reports/firewall-check-nmap-removal.md) records the completed verification; [Startup Programs](../plans/startup-programs.md) has a separate, unexecuted checklist. Historical estimates and test targets below do not represent current coverage or a new test run.
 
 Nmap execution and `_nmap_ports` are retired. Replace their cases below with legacy `scan_mode: nmap` conversion to psutil and blocked Nmap import. Active tests are `tests/test_config_scanner.py`, `modules/port_scanner/tests/test_scanner.py`, and `modules/firewall_check/tests/`. Firewall coverage includes all risk rules, validated evidence, singleton/empty results, Unicode, unsupported platforms, permissions, timeout, REST/token isolation, pagination, WebSocket/replay, and failed-scan diff recovery. UI acceptance lives in `tests/test_selenium_firewall.py` and the existing Selenium suites. Earlier Nmap-specific entries below are superseded; historical test reports remain unchanged.

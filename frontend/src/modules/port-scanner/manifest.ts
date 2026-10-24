@@ -11,5 +11,5 @@ export const manifest: ModuleManifest = {
   status: "active",
   Page: PortScannerPage,
   description:
-    "Quét toàn bộ cổng đang LISTEN, đối chiếu whitelist và so sánh với lượt quét trước để phát hiện điều mới xuất hiện.",
+    "Kiểm kê endpoint TCP/UDP, đánh giá theo bằng chứng và xác nhận đã xem xét độc lập với rủi ro.",
 };

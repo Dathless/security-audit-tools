@@ -61,7 +61,7 @@ Các endpoint dự kiến dưới `/api/v1/modules/startup-programs` (chưa tồ
 - Danh sách module, latest, history và changes dùng cùng context hiện tại; không hiển thị kết quả tài khoản khác như kết quả hiện tại.
 - Bật manifest frontend Startup Programs. Trang có KPI, bảng kiểm kê tìm kiếm được, nguồn/phạm vi, command/path và lý do cảnh báo; nhật ký có trước/sau và nhãn “Ban đầu”, “Đã thêm”, “Đã sửa”, “Đã xóa”.
 - Thêm module vào Scan History. Dùng layout, bảng, badge, progress và error/retry hiện có; chỉ hiển thị kết quả hoàn tất sau khi transaction thành công.
-- Tái sử dụng vòng đời quét Firewall; nếu trích hook dùng chung, giữ xử lý mất WebSocket, callback cũ, rời trang và đồng bộ busy state. Không thay hook whitelist riêng của Port Scanner.
+- Tái sử dụng vòng đời quét Firewall; nếu trích hook dùng chung, giữ xử lý mất WebSocket, callback cũ, rời trang và đồng bộ busy state. Giữ review riêng của Port Scanner; không áp dụng review/whitelist vào Startup.
 - Render command/tên/đường dẫn như text không tin cậy; không tạo HTML thô, shell action hoặc liên kết thực thi. Không có whitelist hay endpoint thay đổi cấu hình startup.
 
 ## Review Focus
@@ -97,3 +97,5 @@ Hash `.lnk` chỉ phát hiện thay đổi chính shortcut, không phát hiện 
 - [Microsoft: RegistryKey.GetValue](https://learn.microsoft.com/en-us/dotnet/api/microsoft.win32.registrykey.getvalue)
 - [Microsoft: Environment.GetFolderPath](https://learn.microsoft.com/en-us/dotnet/api/system.environment.getfolderpath)
 - [Microsoft: Get-FileHash](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/get-filehash)
+
+Hiện core đã có hook mặc định `on_persist(session, scan_id, result, previous)` để ghi journal trong transaction, cùng opt-in `serialize_scans` và baseline theo identity version cho Port Scanner. Startup cần tái sử dụng các điểm mở rộng này, đồng thời bổ sung context riêng theo thiết kế trên; context chưa được triển khai chỉ bởi Port đã nâng cấp.

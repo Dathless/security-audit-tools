@@ -45,8 +45,8 @@ class TestScanLifecycle:
             value = card.find_element(By.CSS_SELECTOR, "[data-testid='kpi-value'], .kpi-value").text
             kpi_values[label.lower()] = value
 
-        assert "cổng đang mở" in kpi_values
-        assert kpi_values["cổng đang mở"] != "—"
+        assert "endpoint" in kpi_values
+        assert kpi_values["endpoint"] != "—"
 
     def test_scan_updates_kpis_in_real_time(self, driver):
         driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
@@ -154,7 +154,7 @@ class TestWebSocketRealTimeUpdates:
             EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='panel']:last-child, .panel:last-child"))
         )
         subtitle = panel.find_element(By.CSS_SELECTOR, "[data-testid='panel-subtitle'], .panel-subtitle")
-        assert "cổng đang mở" in subtitle.text.lower() or "open port" in subtitle.text.lower()
+        assert "endpoint" in subtitle.text.lower() or "open port" in subtitle.text.lower()
 
 
 @pytest.mark.selenium
@@ -212,57 +212,33 @@ class TestScanHistoryNavigation:
 
 
 @pytest.mark.selenium
-class TestWhitelistPersistence:
-    """Tests that whitelist changes persist across scans."""
-
-    def test_mark_safe_persists_in_new_scan(self, driver):
+class TestReviewPersistence:
+    def test_review_persists_across_equivalent_snapshots(self, driver, selenium_database):
+        import sqlite3
+        from test_selenium_port_upgrade import seed_endpoints
+        seed_endpoints(selenium_database)
         driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
-        wait = WebDriverWait(driver, 90)
-        scan_button = (By.CSS_SELECTOR, "[data-testid='scan-button']")
-        wait.until(EC.element_to_be_clickable(scan_button)).click()
-        first = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".row-actions button")))
-        port = first.find_element(By.XPATH, "ancestor::tr").find_elements(By.TAG_NAME, "td")[1].text.strip()
-        assert port.isdigit()
-        target = (By.XPATH, f"//tbody/tr[td[2][normalize-space()='{port}']]//div[@class='row-actions']/button")
+        wait = WebDriverWait(driver, 15)
+        first = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='review-endpoint-btn']")))
         first.click()
-        wait.until(EC.text_to_be_present_in_element(target, "Bỏ an toàn"))
-        wait.until(EC.element_to_be_clickable(scan_button)).click()
-        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='progress-bar']")))
-        wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, "[data-testid='progress-bar']")))
-        wait.until(EC.text_to_be_present_in_element(target, "Bỏ an toàn"))
+        wait.until(EC.text_to_be_present_in_element((By.TAG_NAME,"table"),"Hủy xác nhận"))
+        with sqlite3.connect(selenium_database) as connection:
+            connection.execute("INSERT INTO scans (id,module_id,status,started_at,summary_json,partial_result) SELECT 'next-equivalent',module_id,'done','2026-10-24 00:00:01',summary_json,0 FROM scans WHERE id='seed-v2'")
+            connection.execute("INSERT INTO scan_items (scan_id,module_id,whitelist_key,severity,title,detail_json,is_new) SELECT 'next-equivalent',module_id,whitelist_key,severity,title,detail_json,0 FROM scan_items WHERE scan_id='seed-v2'")
+        driver.refresh()
+        wait.until(EC.text_to_be_present_in_element((By.TAG_NAME,"table"),"Hủy xác nhận"))
+        assert len(driver.find_elements(By.XPATH, "//table//button[contains(.,'Hủy xác nhận')]")) == 1
 
-    def test_whitelist_page_shows_marked_items(self, driver):
+    def test_settings_lists_saved_endpoint_review(self, driver, selenium_database):
+        from test_selenium_port_upgrade import seed_endpoints
+        seed_endpoints(selenium_database)
         driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
-
-        scan_btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button']"))
-        )
-        scan_btn.click()
-
-        WebDriverWait(driver, 90).until(
-            EC.invisibility_of_element_located((By.CSS_SELECTOR, "[data-testid='progress-bar'], .progress-bar"))
-        )
-
-        action_btns = driver.find_elements(By.CSS_SELECTOR, ".row-actions button")
-        if action_btns:
-            action_btns[0].click()
-            time.sleep(1)
-
-        # Navigate to settings/whitelist
-        settings_link = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='nav-item-settings'], .nav-item[data-route='/settings']"))
-        )
-        settings_link.click()
-
-        WebDriverWait(driver, 10).until(
-            EC.url_contains("/settings")
-        )
-
-        whitelist_section = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='whitelist-list'], .whitelist-list"))
-        )
-        items = whitelist_section.find_elements(By.CSS_SELECTOR, "[data-testid='whitelist-item'], .whitelist-item")
-        assert len(items) >= 1
+        wait = WebDriverWait(driver, 15)
+        wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR,"[data-testid='review-endpoint-btn']"))).click()
+        wait.until(EC.text_to_be_present_in_element((By.TAG_NAME,"table"),"Hủy xác nhận"))
+        driver.find_element(By.CSS_SELECTOR,"[data-testid='nav-item-settings']").click()
+        wait.until(EC.text_to_be_present_in_element((By.CSS_SELECTOR,"[data-testid='port-reviews-list']"),"TCP 0.0.0.0:4444"))
+        assert "Theo bằng chứng" in driver.find_element(By.CSS_SELECTOR,"[data-testid='port-reviews-list']").text
 
 
 @pytest.mark.selenium

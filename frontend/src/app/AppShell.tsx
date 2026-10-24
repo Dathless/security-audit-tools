@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import { activeModules, findModuleByRoute, firstActiveModule } from "../core/moduleRegistry";
 import { GENERAL_NAV, navigate, useRoute } from "../core/router";
 import { useScanHandler } from "../core/scanRegistry";
-import { updateHealth, useAppState, setBadge } from "../core/appStore";
+import { appStore, updateHealth, useAppState, setBadge } from "../core/appStore";
 import { fetchHealth, fetchModules, openGlobalSocket } from "../modules/api";
 import { Button } from "../design-system/components/Button";
 import { NavItem } from "../design-system/components/NavItem";
@@ -146,8 +146,8 @@ export function AppShell(): ReactElement {
         // seed badge từ last scan nếu backend báo has_scan
         mods.forEach((m) => {
           const sm = m.last_scan?.summary;
-          const count = sm ? (sm.danger || 0) + (sm.warning || 0) : 0;
-          if (count > 0) setBadge(m.id, count);
+          const count = sm?.needs_review_count ?? (sm?.danger || 0) + (sm?.warning || 0);
+          if (appStore.get().badges[m.id] === undefined) setBadge(m.id, count);
         });
       })
       .catch(() => {

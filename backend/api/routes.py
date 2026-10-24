@@ -35,12 +35,13 @@ async def list_modules() -> dict:
             ).scalar_one_or_none()
             last_scan = None
             if last:
+                serializer = manifest.meta.get("summary_serializer")
                 last_scan = {
                     "id": last.id,
                     "status": last.status,
                     "started_at": dt_to_iso(last.started_at),
                     "finished_at": dt_to_iso(last.finished_at),
-                    "summary": _load_json(last.summary_json),
+                    "summary": serializer(s, last) if serializer else _load_json(last.summary_json),
                     "partial_result": last.partial_result,
                 }
             result.append(

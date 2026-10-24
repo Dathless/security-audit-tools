@@ -1,5 +1,7 @@
 # Current implementation note
 
+Port Scanner 0.2.0 supersedes the catalog's old port/name identity, whitelist severity overrides and risky-loopback=danger cases. Current acceptance is [endpoint/risk/review v2](../architecture/port-scanner-risk.md); execution evidence is in the [upgrade report](reports/port-scanner-upgrade.md). The old scenarios below are historical proposals, not the current contract.
+
 Status checked against main on 2026-10-24: Port Scanner and Firewall Check are implemented; Startup Programs is [planned](../plans/startup-programs.md). The final pre-merge run recorded 295 passing tests; see the [verification report](reports/firewall-check-nmap-removal.md). The case catalog below also contains proposed cases and is not proof that every case is implemented or has passed.
 
 The Nmap engine is removed. Its unavailable/execution/parser cases below are superseded by psutil-only operation and legacy configuration compatibility. Firewall Check v1 acceptance and failure cases are implemented in `backend/modules/firewall_check/tests/` and `backend/tests/test_selenium_firewall.py`; see [implementation checklist](../plans/completed/firewall-check-nmap-removal-checklist.md) for execution evidence.

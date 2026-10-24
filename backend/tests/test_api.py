@@ -307,34 +307,18 @@ def test_scan_history_pagination(client):
 # ---------------------------------------------------------------------------
 
 
-def test_whitelist_crud(client):
-    """TC-WL-001..005: CRUD whitelist + không tạo duplicate."""
-    resp = client.get("/api/v1/modules/port-scanner/whitelist")
-    assert resp.status_code == 200
-    assert resp.json()["data"] == []
-
-    resp = client.post(
-        "/api/v1/modules/port-scanner/whitelist",
-        json={"whitelist_key": "445:fake.exe", "label": "server chia sẻ"},
-    )
-    assert resp.status_code == 200
-    entry_id = resp.json()["data"]["id"]
-
-    resp = client.get("/api/v1/modules/port-scanner/whitelist")
-    data = resp.json()["data"]
-    assert len(data) == 1
-    assert data[0]["whitelist_key"] == "445:fake.exe"
-
-    resp = client.post(
-        "/api/v1/modules/port-scanner/whitelist", json={"whitelist_key": "445:fake.exe"}
-    )
-    assert resp.json()["data"]["created"] is False
-
-    resp = client.delete(f"/api/v1/modules/port-scanner/whitelist/{entry_id}")
-    assert resp.status_code == 200
-
-    resp = client.get("/api/v1/modules/port-scanner/whitelist")
-    assert resp.json()["data"] == []
+def test_legacy_whitelist_read_delete_and_retired_create(client):
+    from storage.db import WhitelistEntry
+    with db.session() as session:
+        entry = WhitelistEntry(module_id="port-scanner", whitelist_key="445:fake.exe", label="old")
+        session.add(entry)
+        session.commit()
+        entry_id = entry.id
+    response = client.get("/api/v1/modules/port-scanner/whitelist")
+    assert response.json()["data"][0]["whitelist_key"] == "445:fake.exe"
+    assert client.post("/api/v1/modules/port-scanner/whitelist", json={"whitelist_key": "445:fake.exe"}).status_code == 410
+    assert client.delete(f"/api/v1/modules/port-scanner/whitelist/{entry_id}").status_code == 200
+    assert client.get("/api/v1/modules/port-scanner/whitelist").json()["data"] == []
 
 
 def test_whitelist_delete_not_found(client):
@@ -356,8 +340,8 @@ def test_whitelist_validation(client):
     assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
 
     resp = client.post("/api/v1/modules/port-scanner/whitelist", json={"whitelist_key": "   "})
-    assert resp.status_code == 400
-    assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
+    assert resp.status_code == 410
+    assert resp.json()["error"]["code"] == "WHITELIST_REPLACED_BY_REVIEW"
 
     resp = client.post("/api/v1/modules/port-scanner/whitelist", json={"whitelist_key": 123})
     assert resp.status_code == 422

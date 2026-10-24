@@ -3,20 +3,14 @@ from __future__ import annotations
 from core.config import ModuleSettings
 
 
-def test_custom_risky_ports_from_config(clean_db, monkeypatch):
-    """CL-CS-001: Config known_risky_ports: [22, 8080] -> scanner classify 22 = danger, 4444 = safe."""
-    from helpers import fake_conn
+def test_custom_risky_ports_from_config(clean_db):
     from modules.port_scanner.scanner import PortScannerModule
-
-    async def _run():
-        pass
-
     scanner = PortScannerModule()
     scanner.known_risky_ports = {22, 8080}
-
-    assert scanner._classify({"port": 22, "ip": "127.0.0.1", "pid": None, "process_name": "", "protocol": "tcp", "permission_denied": False}) == ("danger", ["PORT_IN_RISKY_LIST"])
-    assert scanner._classify({"port": 8080, "ip": "127.0.0.1", "pid": None, "process_name": "", "protocol": "tcp", "permission_denied": False}) == ("danger", ["PORT_IN_RISKY_LIST"])
-    assert scanner._classify({"port": 4444, "ip": "127.0.0.1", "pid": None, "process_name": "", "protocol": "tcp", "permission_denied": False}) == ("safe", [])
+    entry = {"ip": "127.0.0.1", "owners": [{"exe": "C:\\Apps\\app.exe", "username": "TEST"}]}
+    for port in (22, 8080):
+        assert scanner._classify({**entry, "port": port}) == ("warning", ["PORT_IN_RISKY_LIST"])
+    assert scanner._classify({**entry, "port": 4444}) == ("safe", [])
 
 
 def test_default_risky_ports():

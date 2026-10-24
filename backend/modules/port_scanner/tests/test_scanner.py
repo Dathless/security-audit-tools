@@ -45,18 +45,18 @@ async def test_run_classify_severities(clean_db, patch_psutil):
     from modules.port_scanner.scanner import PortScannerModule
 
     conns = [
-        fake_conn("127.0.0.1", 8080),
-        fake_conn("0.0.0.0", 445),
-        fake_conn("127.0.0.1", 4444),
+        fake_conn("127.0.0.1", 8080, 1),
+        fake_conn("0.0.0.0", 445, 1),
+        fake_conn("127.0.0.1", 4444, 1),
     ]
-    patch_psutil(conns)
+    patch_psutil(conns, {1: FakeProcess("app.exe")})
 
     result = await PortScannerModule().run()
     by_port = {item.detail["port"]: item.severity for item in result.items}
-    assert by_port[4444] == "danger"
+    assert by_port[4444] == "warning"
     assert by_port[445] == "warning"
     assert by_port[8080] == "safe"
-    assert result.summary == {"total_open": 3, "danger": 1, "warning": 1, "safe": 1}
+    assert {key: result.summary[key] for key in ("total_open", "danger", "warning", "safe")} == {"total_open": 3, "danger": 0, "warning": 2, "safe": 1}
 
     # Verify reason codes
     reasons_by_port = {item.detail["port"]: item.detail["reasons"] for item in result.items}
@@ -74,7 +74,7 @@ async def test_run_reports_partial_permission_denied(clean_db, patch_psutil):
     )
 
     result = await PortScannerModule().run()
-    assert result.partial_result is True
+    assert result.partial_result is False
     item = next(i for i in result.items if i.detail["port"] == 9000)
     assert item.detail["permission_denied"] is True
 
@@ -83,13 +83,13 @@ async def test_run_reports_partial_permission_denied(clean_db, patch_psutil):
 @pytest.mark.parametrize(
     "ip,port,pid,proc,expected",
     [
-        ("127.0.0.1", 8080, None, None, "safe"),  # TC-SCANNER-003 localhost safe
-        ("127.0.0.1", 443, None, None, "safe"),
+        ("127.0.0.1", 8080, None, None, "warning"),  # TC-SCANNER-003 localhost safe
+        ("127.0.0.1", 443, None, None, "warning"),
         ("0.0.0.0", 8080, None, None, "warning"),  # TC-SCANNER-004 wildcard bind
         ("::", 8080, None, None, "warning"),
-        ("127.0.0.1", 4444, None, None, "danger"),  # TC-SCANNER-005 risky port
-        ("127.0.0.1", 1337, None, None, "danger"),
-        ("127.0.0.1", 31337, None, None, "danger"),
+        ("127.0.0.1", 4444, None, None, "warning"),  # TC-SCANNER-005 risky port
+        ("127.0.0.1", 1337, None, None, "warning"),
+        ("127.0.0.1", 31337, None, None, "warning"),
         ("127.0.0.1", 8080, 5, FakeProcess("app.exe"), "safe"),  # TC-PERM-002
         ("127.0.0.1", 8080, 5, FakeProcess(access_denied=True), "warning"),
     ],
@@ -118,7 +118,8 @@ async def test_process_does_not_exist_still_returns_item(clean_db, patch_psutil)
     assert item.detail["pid"] == 424242
     assert item.detail["process_name"] == ""
     assert item.detail["permission_denied"] is False
-    assert item.severity == "safe"
+    assert item.severity == "warning"
+    assert item.detail["owners"][0]["status"]["exe"] == "gone"
 
 
 @pytest.mark.parametrize("port,process", [(22, "nginx.exe"), (80, "nginx.exe"), (443, "httpd.exe"), (5432, "postgres.exe")])
@@ -136,12 +137,12 @@ async def test_process_name_does_not_prove_service_mismatch(clean_db, patch_psut
 
 
 @pytest.mark.parametrize("ip,port,note", [
-    ("127.0.0.1", 8080, "Port mở thông thường (loopback/nội bộ)"),
-    ("0.0.0.0", 8080, "Đang lắng nghe trên mọi giao diện (0.0.0.0/::)"),
-    ("127.0.0.1", 4444, "Nằm trong danh sách cổng rủi ro đã biết"),
+    ("127.0.0.1", 8080, "Không phát hiện theo tiêu chí hiện tại"),
+    ("0.0.0.0", 8080, "Bind trên mọi giao diện; chưa xác minh khả năng truy cập từ mạng"),
+    ("127.0.0.1", 4444, "Cổng nằm trong danh sách cần chú ý; không phải bằng chứng malware"),
 ])
 async def test_scan_preserves_legacy_detail_fields(clean_db, patch_psutil, ip, port, note):
-    patch_psutil([fake_conn(ip, port)])
+    patch_psutil([fake_conn(ip, port, 7)], {7: FakeProcess("app.exe")})
     item = (await PortScannerModule().run()).items[0]
     assert item.detail["ip"] == item.detail["listener"] == ip
     assert item.detail["note"] == note
@@ -168,7 +169,7 @@ async def test_risky_port_takes_priority_over_process_name(clean_db, patch_psuti
     result = await PortScannerModule().run()
     assert len(result.items) == 1
     item = result.items[0]
-    assert item.severity == "danger"
+    assert item.severity == "warning"
     assert "PORT_IN_RISKY_LIST" in item.detail["reasons"]
     assert item.detail["reasons"] == ["PORT_IN_RISKY_LIST"]
 
@@ -182,20 +183,15 @@ async def test_whitelist_key_with_process_name(clean_db, patch_psutil):
     result = await PortScannerModule().run()
     item = result.items[0]
     key = PortScannerModule().get_whitelist_key(item)
-    assert key == "445:fake.exe"
+    assert key == '["endpoint-v2","tcp","ipv4","127.0.0.1",445]'
 
 
-async def test_net_connections_access_denied_returns_partial(clean_db, patch_psutil):
-    """TC-PERM-001 (mở rộng): không đọc được danh sách kết nối -> partial_result + warning."""
-    from modules.port_scanner.scanner import PortScannerModule
-
+async def test_net_connections_access_denied_is_structured_error(clean_db, patch_psutil):
+    from core.scanner_base import ScanError
     patch_psutil([], deny_net=True)
-
-    result = await PortScannerModule().run()
-    assert result.partial_result is True
-    assert len(result.items) == 1
-    assert result.items[0].detail["permission_denied"] is True
-    assert result.items[0].severity == "warning"
+    with pytest.raises(ScanError) as error:
+        await PortScannerModule().run()
+    assert error.value.code == "SCAN_PERMISSION_DENIED"
 
 
 async def test_diffing_marks_new_and_disappeared(clean_db, patch_psutil):
@@ -213,7 +209,7 @@ async def test_diffing_marks_new_and_disappeared(clean_db, patch_psutil):
         scan1_items = s.scalars(select(ScanItem).where(ScanItem.scan_id == scan1)).all()
         scan2_items = s.scalars(select(ScanItem).where(ScanItem.scan_id == scan2)).all()
         assert len(scan1_items) == 1
-        assert scan1_items[0].is_new is True
+        assert scan1_items[0].is_new is False
         assert len(scan2_items) == 1
         assert scan2_items[0].is_new is True
 
@@ -228,7 +224,7 @@ async def test_diffing_marks_new_and_disappeared(clean_db, patch_psutil):
         assert scan2_row.summary_json is not None
 
 
-async def test_whitelist_overrides_severity(clean_db, patch_psutil):
+async def test_legacy_whitelist_does_not_override_risk(clean_db, patch_psutil):
     from core.executor import execute_scan
 
     manifest = _manifest()
@@ -249,8 +245,8 @@ async def test_whitelist_overrides_severity(clean_db, patch_psutil):
 
     with db.session() as s:
         item2 = s.scalars(select(ScanItem).where(ScanItem.scan_id == scan_id2)).one()
-        assert item2.whitelist_key == "445:fake.exe"
-        assert item2.severity == "safe"
+        assert item2.whitelist_key == '["endpoint-v2","tcp","ipv4","0.0.0.0",445]'
+        assert item2.severity == "warning"
 
 
 # ---------------------------------------------------------------------- utilities
@@ -273,13 +269,13 @@ def test_build_summary_correct_counts():
         ScanResultItem(severity="safe", title="j"),
     ]
     result = _build_summary(items)
-    assert result == {"total_open": 10, "danger": 3, "warning": 2, "safe": 5}
+    assert {key: result[key] for key in ("total_open", "danger", "warning", "safe")} == {"total_open": 10, "danger": 3, "warning": 2, "safe": 5}
 
 
 def test_build_summary_empty():
     """UT-SC-002: _build_summary list rỗng -> totals 0."""
     result = _build_summary([])
-    assert result == {"total_open": 0, "danger": 0, "warning": 0, "safe": 0}
+    assert {key: result[key] for key in ("total_open", "danger", "warning", "safe")} == {"total_open": 0, "danger": 0, "warning": 0, "safe": 0}
 
 
 def test_build_summary_mix_severities():

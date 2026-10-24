@@ -146,7 +146,7 @@ def driver(request, frontend_process, selenium_database) -> Generator[WebDriver,
     else:
         pytest.fail("Previous Selenium scan did not finish")
     with sqlite3.connect(selenium_database) as connection:
-        for table in ("scan_diff_log", "scan_items", "whitelist_entries", "scans", "port_scanner_config"):
+        for table in ("port_scanner_reviews", "scan_diff_log", "scan_items", "whitelist_entries", "scans", "port_scanner_config"):
             connection.execute(f"DELETE FROM {table}")
     headless = str(request.config.getoption("--selenium-headless", "true")).lower() != "false"
     browser = str(request.config.getoption("--selenium-browser", "chrome")).lower()

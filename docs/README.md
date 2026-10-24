@@ -9,6 +9,7 @@ Quy tắc commit/PR và cập nhật tài liệu nằm trong [CONTRIBUTING.md](.
 | Nhu cầu | Tài liệu |
 |---|---|
 | Hiểu kiến trúc backend | [Backend](architecture/backend.md) |
+| Port Scanner 0.2.0 | [Kế hoạch/checklist](plans/port-scanner-upgrade.md), [rules và review](architecture/port-scanner-risk.md), [kiểm chứng](testing/reports/port-scanner-upgrade.md) |
 | Triển khai module tiếp theo | [Startup Programs — thiết kế và checklist](plans/startup-programs.md) |
 | Xem phần Firewall Check và bỏ Nmap đã hoàn thành | [Kế hoạch](plans/completed/firewall-check-nmap-removal.md), [checklist](plans/completed/firewall-check-nmap-removal-checklist.md), [bằng chứng kiểm thử](testing/reports/firewall-check-nmap-removal.md) |
 | Hiểu UI và design tokens | [Kiến trúc frontend](architecture/frontend.md); [đường dẫn cũ](../frontend/DESIGN.md) giữ liên kết tương thích |
@@ -17,7 +18,7 @@ Quy tắc commit/PR và cập nhật tài liệu nằm trong [CONTRIBUTING.md](.
 
 | Tài liệu | Cách sử dụng |
 |---|---|
-| [Định hướng đánh giá rủi ro Port Scanner](architecture/port-scanner-risk.md) | Phân biệt các rule hiện có với các level mới được đề xuất |
+| [Đánh giá rủi ro Port Scanner](architecture/port-scanner-risk.md) | Contract identity v2, risk matrix, review lifecycle và giới hạn hiện tại |
 | [Đề xuất Active Modules](plans/proposals/active-modules.md) | Ý tưởng tham khảo, chưa phải chức năng đã triển khai |
 | [Danh mục test case](testing/test-cases.md), [kế hoạch unit test](testing/unit-test-plan.md) | Đối chiếu với test thực thi và báo cáo mới nhất |
 | [Kế hoạch sửa Selenium trước đây](archive/selenium-ui-fix-plan.md) | Bối cảnh lỗi cũ, không đại diện cho trạng thái hiện tại |
@@ -31,6 +32,7 @@ docs/
 ├── architecture/       # Thiết kế backend, frontend và đánh giá rủi ro
 ├── plans/
 │   ├── startup-programs.md
+│   ├── port-scanner-upgrade.md  # Giữ đường dẫn bàn giao người dùng yêu cầu
 │   ├── completed/      # Kế hoạch và checklist của phần đã hoàn thành
 │   └── proposals/      # Ý tưởng tham khảo, chưa cam kết triển khai
 ├── testing/
@@ -46,9 +48,9 @@ docs/
 
 - Dùng tên tệp `kebab-case.md`, mô tả rõ nội dung; kế hoạch mới đặt trong `plans/` và có checklist kiểm chứng.
 - Giữ một bản kế hoạch cho mỗi tính năng. Khi thiết kế được điều chỉnh, cập nhật bản đó thay vì tạo tài liệu cạnh tranh.
-- Kế hoạch đã thực hiện chuyển vào `plans/completed/`; báo cáo kiểm chứng đặt trong `testing/reports/`. Không đánh dấu hoàn thành chỉ vì đã có tài liệu.
+- Kế hoạch đã thực hiện chuyển vào `plans/completed/`; riêng Port Scanner upgrade giữ đường dẫn người dùng yêu cầu và trạng thái trong checklist. Báo cáo kiểm chứng đặt trong `testing/reports/`. Không đánh dấu hoàn thành chỉ vì đã có tài liệu.
 - Giữ báo cáo/log cũ trong `archive/` với số liệu gốc. Chúng không đại diện cho kết quả kiểm thử hiện tại.
 - Khi di chuyển tệp, sửa cả liên kết Markdown và đường dẫn tham chiếu trong README, hướng dẫn contributor và tài liệu liên quan.
 - `docs/` vẫn bị Git bỏ qua cho tệp mới; các tài liệu Markdown được chọn trong mục lục được theo dõi trong Git. Khi thêm tài liệu, chọn từng tệp cần chia sẻ bằng `git add -f <path>`. Log lỗi thô vẫn chỉ có trên máy; không thêm toàn bộ thư mục hoặc log thô.
 
-Hai tài liệu kiến trúc backend/frontend mô tả hệ thống hiện tại. `architecture/port-scanner-risk.md` phân biệt quy tắc đang chạy với ý tưởng mở rộng; `plans/proposals/active-modules.md`, các kế hoạch kiểm thử ban đầu và nội dung `archive/` là tài liệu tham khảo, không xác nhận những đề xuất trong đó đã được triển khai.
+Hai tài liệu kiến trúc backend/frontend và `architecture/port-scanner-risk.md` mô tả hệ thống hiện tại; `plans/proposals/active-modules.md`, các kế hoạch kiểm thử ban đầu và nội dung `archive/` là tài liệu tham khảo, không xác nhận những đề xuất trong đó đã được triển khai.

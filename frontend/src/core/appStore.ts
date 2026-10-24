@@ -29,7 +29,7 @@ class Store<T> {
 export interface AppState {
   /** danh sách module backend đang enabled — nguồn cho sidebar footer/badge */
   modules: BackendModule[];
-  /** badge đỏ "cần xem" theo module_id (đếm mục danger/warning) */
+  /** badge "cần xem" theo module_id; Port dùng review, module khác dùng raw risk */
   badges: Record<string, number>;
   health: HealthInfo | null;
   /** backend có đang chạy hay không (từ API call) */

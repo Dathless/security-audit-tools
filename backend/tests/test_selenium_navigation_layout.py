@@ -265,7 +265,7 @@ class TestAccessibility:
         badges = driver.find_elements(By.CSS_SELECTOR, "[data-testid='status-badge'], .status-badge")
         for badge in badges:
             text = badge.text.strip()
-            assert text in ["Nguy hiểm", "Cảnh báo", "An toàn", "Danger", "Warning", "Safe"], f"Badge missing text: '{text}'"
+            assert text, "Status/review badge must include readable text, not only color"
 
     def test_table_sortable_columns_have_aria_sort(self, driver):
         driver.get("http://127.0.0.1:5173/#/modules/port-scanner")

@@ -14,7 +14,7 @@
 
 > Công cụ kiểm tra bảo mật cho laptop Windows cá nhân — kiểm kê cổng, kiểm tra cấu hình firewall và theo dõi thay đổi giữa các lượt quét theo thời gian thực.
 
-**Security Audit Tool** là ứng dụng **local-first** chạy trên chính chiếc máy cần kiểm tra. Port Scanner kiểm kê TCP LISTEN/UDP bằng `psutil`, hỗ trợ whitelist và so sánh identity giữa các lượt quét. Firewall Check đọc profiles/rules Windows, giải thích cảnh báo và lưu lịch sử. Startup Programs đã có [kế hoạch thiết kế](docs/plans/startup-programs.md), chưa được triển khai.
+**Security Audit Tool** là ứng dụng **local-first** chạy trên chính chiếc máy cần kiểm tra. Port Scanner kiểm kê endpoint TCP LISTEN/UDP bind bằng `psutil`, đánh giá có bằng chứng và xác nhận review độc lập với rủi ro. Firewall Check đọc profiles/rules Windows, giải thích cảnh báo và lưu lịch sử. Startup Programs đã có [kế hoạch thiết kế](docs/plans/startup-programs.md), chưa được triển khai.
 
 Kiến trúc **module hoá hai chiều** (backend + frontend) tự phát hiện manifest và router/page của module mới. Khi chức năng cần mở rộng hợp đồng chung, thay đổi core phải giữ tương thích và có kiểm thử hồi quy cho các module hiện có.
 
@@ -64,19 +64,16 @@ Kiến trúc **module hoá hai chiều** (backend + frontend) tự phát hiện 
 
 ### Module Port Scanner (đang hoạt động)
 
-- **Quét cổng đang lắng nghe** trên máy bằng `psutil`, không cần cài Nmap.
-- **Phân loại rủi ro tự động**:
-  - 🔴 `danger` — cổng nằm trong danh sách cổng rủi ro đã biết (mặc định `4444`, `1337`, `31337`, có thể tuỳ chỉnh).
-  - 🟡 `warning` — đang lắng nghe trên mọi giao diện (`0.0.0.0` / `::`), hoặc không đọc được tên tiến trình do thiếu quyền.
-  - 🟢 `safe` — cổng mở thông thường (loopback / nội bộ).
-- **Whitelist**: đánh dấu một cổng/tiến trình là "an toàn" ngay từ bảng dữ liệu; các lần quét sau sẽ tự hạ mức rủi ro về `safe`.
-- **Diffing lịch sử**: so sánh với lượt quét liền trước, gắn badge **NEW** cho mục mới xuất hiện và ghi log những mục đã biến mất (`scan_diff_log`).
-- **Real-time**: tiến trình quét, từng cổng phát hiện và kết quả cuối đều đẩy qua WebSocket — không phải đợi kết quả sau vài chục giây.
+- **Kiểm kê endpoint local**: TCP LISTEN và UDP đang bind; tách giao thức, IPv4/IPv6, địa chỉ bind/scoped IPv6 và cổng, giữ đủ owner. Không thử kết nối hay quét mạng.
+- **Đánh giá có bằng chứng**: risky-port + ngoài loopback là `danger` (ưu tiên cao); risky-port chỉ loopback, bind ngoài loopback hoặc thiếu identity tiến trình là `warning`; trường hợp còn lại `safe` (không có phát hiện theo tiêu chí hiện tại). Giữ mọi reasons/guidance. Bind address không chứng minh truy cập được từ Internet.
+- **Review**: xác nhận đã xem không hạ risk/KPI. Đủ executable/user thì dùng xuyên scan; thiếu metadata chỉ xác nhận lượt hiện tại. Bằng chứng đổi hoặc endpoint biến mất làm review hết hiệu lực, kể cả A → B → A.
+- **Lịch sử**: baseline đầy đủ cùng identity version; phân biệt ban đầu/thêm/đổi, giữ trước/sau và removal. Partial không báo biến mất hoặc làm baseline; snapshot cũ được gắn legacy, không tái phân loại.
+- **Real-time**: phục hồi scan đang chạy, xử lý mất WebSocket và tải đúng scan đã hoàn tất. Chỉ một Port scan đồng thời; yêu cầu trùng trả `409`.
 
 ### Ứng dụng tổng thể
 
 - **Dashboard tối (dark theme)** với radar quét cổng trực quan — một chấm tương ứng một cổng, màu theo mức rủi ro.
-- **KPI row**: tổng cổng mở / nguy hiểm / cảnh báo / an toàn.
+- **KPI Port Scanner**: endpoint / ưu tiên cao / cảnh báo / không có phát hiện; trạng thái review hiển thị riêng.
 - **Sidebar sinh tự động từ registry** module, kèm badge đỏ đếm số mục cần xem và trạng thái backend (Idle / Đang quét / Offline).
 - **Scan History** — lịch sử tổng hợp các lượt quét.
 - **Settings** — cấu hình token nội bộ, xem danh sách module backend.
@@ -252,7 +249,7 @@ uvicorn main:app --host 127.0.0.1 --port 8000
 
 Backend chạy tại `http://127.0.0.1:8000`.
 
-> **Ghi chú về quyền:** để đọc được **toàn bộ** tên tiến trình của các cổng đang mở trên Windows, hãy chạy backend với **quyền Administrator**. Nếu không, kết quả vẫn trả về đầy đủ số cổng nhưng một số tiến trình bị đánh dấu *"cần admin"* và UI hiện banner cảnh báo `partial_result`.
+> **Ghi chú về quyền:** Windows có thể từ chối đọc executable/user của một số tiến trình. Metadata ghi rõ thiếu quyền hoặc tiến trình đã thoát; không suy luận an toàn. Lỗi toàn bộ inventory kết thúc scan với `error`; inventory thiếu được gắn `partial_result`, không dùng làm baseline.
 
 > **Lần chạy đầu tiên:** backend tự sinh `local_token` ngẫu nhiên và ghi vào `backend/config.yaml → app.local_token`. Copy token này vào Settings của frontend (hoặc file `.env`).
 
@@ -339,7 +336,7 @@ modules:
     enabled: false
 ```
 
-Mỗi module đọc đúng section `modules.<module_id>` của mình (phần còn lại nằm trong `extra`), không đọc cấu hình của module khác.
+Mỗi module đọc đúng section `modules.<module_id>` của mình (phần còn lại nằm trong `extra`), không đọc cấu hình của module khác. `known_risky_ports` chỉ nhận số nguyên `1..65535`; `[]` nghĩa là không cấu hình cổng cần chú ý. Cấu hình sai kết thúc scan với `SCAN_CONFIG_INVALID`.
 
 ---
 
@@ -372,9 +369,14 @@ Tất cả endpoint (trừ chưa bật `require_local_token`) yêu cầu header 
 | GET | `/api/v1/modules/port-scanner/scans` | Lịch sử lượt quét (phân trang: `page`, `page_size`) |
 | GET | `/api/v1/modules/port-scanner/scans/{scan_id}` | Chi tiết một lượt quét (toàn bộ port + trạng thái) |
 | GET | `/api/v1/modules/port-scanner/scans/latest` | Kết quả lượt quét gần nhất — render dashboard khi tải trang |
-| GET | `/api/v1/modules/port-scanner/whitelist` | Danh sách whitelist hiện tại |
-| POST | `/api/v1/modules/port-scanner/whitelist` | Thêm mục whitelist (`{ whitelist_key, label? }`) |
+| POST | `/api/v1/modules/port-scanner/reviews` | `{scan_id,item_id,note?}`; server tính fingerprint, idempotent; target cũ `409` |
+| GET | `/api/v1/modules/port-scanner/reviews` | `{items,page,page_size,total}`, mặc định 1/20, tối đa 100; gồm expiry/scope |
+| DELETE | `/api/v1/modules/port-scanner/reviews/{id}` | Hủy xác nhận; không tồn tại `404` |
+| GET | `/api/v1/modules/port-scanner/whitelist` | Danh sách whitelist legacy, không tự áp dụng vào scan mới |
+| POST | `/api/v1/modules/port-scanner/whitelist` | Đã ngừng: `410 WHITELIST_REPLACED_BY_REVIEW`; chuyển sang reviews |
 | DELETE | `/api/v1/modules/port-scanner/whitelist/{id}` | Gỡ khỏi whitelist |
+
+Scan v2 giữ trường tương thích `total_open` nhưng giá trị là số endpoint, thêm `total_endpoints`, `unique_ports`, `unique_processes`, `tcp_listeners`, `udp_bindings` và `metadata_incomplete_count`. Chi tiết trả `review_status/review_id/review_scope`; summary GET bổ sung `reviewed_count/needs_review_count`, không sửa danger/warning/safe. OpenAPI tại `/openapi.json` khai báo các route và lỗi chuyển đổi. Xem [rules và giới hạn](docs/architecture/port-scanner-risk.md).
 
 **Convention:** mọi module tương lai đi theo pattern `/api/v1/modules/{module_id}/...`, route nằm trong `module.router` riêng — không dồn vào một file `routes.py` chung.
 
@@ -451,7 +453,7 @@ SQLite qua SQLAlchemy 2.0 (đủ cho một người dùng, không cần server D
 
 ### Bảng riêng module (ví dụ)
 
-`port_scanner_config` — snapshot cấu hình module đang dùng (`scan_mode`, `known_risky_ports`) để đối chiếu kết quả lịch sử.
+`port_scanner_config` lưu cấu hình module đang dùng; `port_scanner_reviews` lưu fingerprint, scope, ghi chú và expiry. Bảng review được tạo bổ sung bằng `create_all`, không sửa snapshot cũ. V1 chỉ hỗ trợ một backend process trên SQLite.
 
 > **Vì sao `detail_json` là JSON tự do?** Mỗi module có payload khác nhau hoàn toàn (port scanner cần `port/pid/process_name`, firewall cần `rule_name/direction/action`...). Nếu cố định cột schema, mỗi module mới cần migration đổi bảng chung — phá vỡ nguyên tắc "module không đụng core". Với dữ liệu cá nhân dung lượng nhỏ, đánh đổi này chấp nhận được.
 
@@ -480,8 +482,8 @@ pytest
 ```
 
 - `conftest.py` cấu hình DB SQLite tạm + token test cố định.
-- `tests/test_api.py` — REST endpoints, auth, CRUD whitelist, luồng scan → history.
-- `modules/port_scanner/tests/test_scanner.py` — phân loại severity, `partial_result`, **diffing (new/disappeared)**, **whitelist override severity** — tất cả mô phỏng `psutil`, không phụ thuộc trạng thái máy thật.
+- `modules/port_scanner/tests/` — identity/owner/risk, review fingerprint/expiry, legacy migration và auth; mô phỏng `psutil`.
+- `tests/test_port_upgrade_pipeline.py` — partial/versioned baseline, transaction rollback, scan trùng và restart; `python -m pytest --selenium` chạy thêm browser tests (cần Chrome).
 
 ### Frontend (`ESLint` + `tsc`)
 
@@ -495,7 +497,7 @@ pnpm build    # chạy tsc -b trước khi vite build → check type
 
 ## Lộ trình
 
-- [x] **Port Scanner** — kiểm kê TCP/UDP bằng psutil, whitelist, diffing, real-time, radar map, scan history, settings.
+- [x] **Port Scanner** — endpoint inventory v2, nhiều owner, raw risk/review độc lập, diff có bằng chứng, real-time, radar, lịch sử và Settings; [kế hoạch](docs/plans/port-scanner-upgrade.md), [kiểm chứng](docs/testing/reports/port-scanner-upgrade.md).
 - [x] **Firewall Check** — profile đang dùng, trạng thái/policy, rule đang bật, giải thích cảnh báo và lịch sử.
 - [ ] **Startup Programs** — [thiết kế đã chốt](docs/plans/startup-programs.md): kiểm kê Run/RunOnce và Startup folders, lưu nhật ký thêm/xóa/sửa với command/hash trước và sau; chưa triển khai.
 - [ ] **Outbound Connections** — theo dõi kết nối ra ngoài đang hoạt động.
