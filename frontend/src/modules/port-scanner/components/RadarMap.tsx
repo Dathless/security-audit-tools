@@ -46,14 +46,14 @@ const SEV_COLOR: Record<Severity, string> = {
 };
 
 const SEV_LABEL: Record<Severity, string> = {
-  danger: "Nguy hiểm",
+  danger: "Ưu tiên cao",
   warning: "Cảnh báo",
-  safe: "An toàn",
+  safe: "Không có phát hiện",
 };
 
 /**
  * Radar cổng — signature element: vòng tròn đồng tâm chia dải cổng,
- * mỗi cổng mở là 1 chấm theo góc tương ứng số hiệu cổng, màu theo severity.
+ * mỗi cổng quan sát là 1 chấm theo góc tương ứng số hiệu cổng, màu theo severity.
  */
 export function RadarMap({ dots, scanning = false }: RadarMapProps): ReactElement {
   const counts = {
@@ -68,7 +68,7 @@ export function RadarMap({ dots, scanning = false }: RadarMapProps): ReactElemen
         className="radar-svg"
         viewBox="0 0 340 340"
         role="img"
-        aria-label={`Radar cổng: ${dots.length} cổng mở. Nguy hiểm ${counts.danger}, cảnh báo ${counts.warning}, an toàn ${counts.safe}.`}
+        aria-label={`Radar cổng: ${dots.length} cổng quan sát. Ưu tiên cao ${counts.danger}, cảnh báo ${counts.warning}, không có phát hiện ${counts.safe}.`}
       >
         {/* nền radar */}
         <defs>
@@ -123,7 +123,7 @@ export function RadarMap({ dots, scanning = false }: RadarMapProps): ReactElemen
           {dots.length}
         </text>
         <text className="radar-center-cap" x={CX} y={CY + 14}>
-          cổng mở
+          cổng quan sát
         </text>
       </svg>
 

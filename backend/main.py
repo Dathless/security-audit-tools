@@ -20,6 +20,7 @@ from api.envelope import fail
 from api.routes import router as api_router
 from api.web_socket import router as ws_router
 from core.config import config
+from core.executor import recover_abandoned_scans
 from core.module_registry import discover_modules
 from core.scheduler import Scheduler
 from storage.db import db
@@ -42,6 +43,7 @@ async def lifespan(app: FastAPI):
 
     # 2. DB: tạo bảng chung + bảng riêng module (module đã được import bởi registry)
     db.create_all()
+    recover_abandoned_scans(_registry)
 
     # 3. Token nội bộ (sinh ngẫu nhiên lúc cài đặt nếu chưa có)
     token = config.ensure_local_token()

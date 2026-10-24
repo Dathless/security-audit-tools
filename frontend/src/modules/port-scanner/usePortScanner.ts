@@ -1,214 +1,170 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type {
-  ScanDetail,
-  ScanItem,
-  ScanSummary,
-  Severity,
-  WhitelistEntry,
-} from "../../core/types/api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { ScanDetail, ScanItem } from "../../core/types/api";
 import { setBadge, setScanningNow } from "../../core/appStore";
 import { registerScanHandler } from "../../core/scanRegistry";
-import {
-  ApiError,
-  addToWhitelist,
-  fetchLatestPortScan,
-  fetchWhitelist,
-  openScanSocket,
-  removeFromWhitelist,
-  startPortScan,
-} from "../api";
+import { ApiError, acknowledgePort, fetchLatestPortScan, fetchPortScan, openScanSocket, revokePortReview, startPortScan } from "../api";
 
 export type ScanPhase = "loading" | "ready" | "scanning" | "empty" | "error";
-
-export interface ScanProgress {
-  current: number;
-  total: number;
-  message: string;
-}
-
-export interface ScannerError {
-  code: string;
-  message: string;
-}
-
-function needsAttention(item: ScanItem, whitelistKeys: ReadonlySet<string>): boolean {
-  return severityOf(item, whitelistKeys) === "danger" || severityOf(item, whitelistKeys) === "warning";
-}
-
-function severityOf(item: ScanItem, whitelistKeys: ReadonlySet<string>): Severity {
-  return whitelistKeys.has(item.whitelist_key) ? "safe" : item.severity;
-}
+export interface ScanProgress { current: number; total: number; message: string }
+export interface ScannerError { code: string; message: string }
 
 export function usePortScanner() {
   const [phase, setPhase] = useState<ScanPhase>("loading");
   const [data, setData] = useState<ScanDetail | null>(null);
   const [liveItems, setLiveItems] = useState<ScanItem[]>([]);
-  const [progress, setProgress] = useState<ScanProgress>({ current: 0, total: 0, message: "" });
-  const [whitelist, setWhitelist] = useState<WhitelistEntry[]>([]);
+  const [progress, setProgress] = useState<ScanProgress>({ current: 0, total: 1, message: "" });
   const [error, setError] = useState<ScannerError | null>(null);
-  const [scanId, setScanId] = useState<string | null>(null);
+  const [reviewing, setReviewing] = useState(false);
+  const mounted = useRef(false);
+  const active = useRef(false);
+  const activeScan = useRef<string | null>(null);
+  const closeSocket = useRef<(() => void) | null>(null);
+  const requestVersion = useRef(0);
+  const pending = useRef<ScanItem[]>([]);
+  const frame = useRef<number | null>(null);
+  const liveId = useRef(0);
 
-  const closeSocketRef = useRef<(() => void) | null>(null);
-  const phaseRef = useRef(phase);
-
-  const whitelistKeys = useMemo(() => new Set(whitelist.map((w) => w.whitelist_key)), [whitelist]);
-
-  useEffect(() => {
-    phaseRef.current = phase;
-  }, [phase]);
-
-  const applyScan = useCallback((scan: ScanDetail | null) => {
-    setData(scan);
-    if (scan) setPhase(scan.status === "error" ? "error" : "ready");
-    else setPhase("empty");
+  const clearPending = useCallback(() => {
+    if (frame.current !== null) cancelAnimationFrame(frame.current);
+    frame.current = null;
+    pending.current = [];
   }, []);
 
-  const loadWhitelist = useCallback(async () => {
+  const load = useCallback(async (scanId?: string) => {
+    const version = ++requestVersion.current;
     try {
-      setWhitelist(await fetchWhitelist());
-    } catch {
-      setWhitelist([]);
-    }
-  }, []);
-
-  const loadLatest = useCallback(async () => {
-    try {
-      const scan = await fetchLatestPortScan();
-      applyScan(scan);
-      setError(null);
+      const scan = scanId ? await fetchPortScan(scanId) : await fetchLatestPortScan();
+      if (!mounted.current || version !== requestVersion.current) return;
+      setData(scan);
+      setError(scan?.status === "error" ? { code: "SCAN_FAILED", message: scan.error_message || "Lượt quét đã thất bại." } : null);
+      setPhase(!scan ? "empty" : scan.status === "running" ? "scanning" : scan.status === "error" ? "error" : "ready");
+      setBadge("port-scanner", scan?.summary?.needs_review_count ?? (scan?.summary?.danger ?? 0) + (scan?.summary?.warning ?? 0));
+      return scan;
     } catch (e) {
-      const err = e as ApiError;
-      setError({ code: err.code, message: err.message });
-      setPhase("error");
-    }
-  }, [applyScan]);
-
-  const connectScanSocket = useCallback(
-    (id: string) => {
-      closeSocketRef.current?.();
-      closeSocketRef.current = openScanSocket(id, {
-        onProgress: (current, total, message) => setProgress({ current, total, message }),
-        onItem: (item) => {
-          const live: ScanItem = {
-            id: Math.random(),
-            ...item,
-            whitelist_key: "",
-          };
-          setLiveItems((prev) => [...prev, live]);
-        },
-        onDone: () => {
-          setScanningNow(false);
-          void loadLatest();
-          void loadWhitelist();
-        },
-        onError: (code, message) => {
-          setScanningNow(false);
-          setError({ code, message });
-          setPhase("error");
-        },
-      });
-    },
-    [loadLatest, loadWhitelist],
-  );
-
-  const startScan = useCallback(async () => {
-    if (phaseRef.current === "scanning") return;
-    setError(null);
-    setLiveItems([]);
-    setProgress({ current: 0, total: 0, message: "Đang khởi tạo lượt quét…" });
-    setPhase("scanning");
-    setScanningNow(true);
-    try {
-      const { scan_id } = await startPortScan();
-      setScanId(scan_id);
-      connectScanSocket(scan_id);
-    } catch (e) {
-      setScanningNow(false);
-      const err = e as ApiError;
-      setError({ code: err.code, message: err.message });
-      setPhase("error");
-    }
-  }, [connectScanSocket]);
-
-  const markSafe = useCallback(
-    async (item: ScanItem) => {
-      if (!item.whitelist_key) return;
-      try {
-        await addToWhitelist(item.whitelist_key, item.title);
-        await loadWhitelist();
-        await loadLatest();
-        setError(null);
-      } catch (e) {
-        const err = e as ApiError;
-        setError({ code: err.code, message: err.message });
-      }
-    },
-    [loadWhitelist, loadLatest],
-  );
-
-  const unmarkSafe = useCallback(
-    async (entryId: number) => {
-      try {
-        await removeFromWhitelist(entryId);
-        await loadWhitelist();
-        await loadLatest();
-        setError(null);
-      } catch (e) {
-        const err = e as ApiError;
-        setError({ code: err.code, message: err.message });
-      }
-    },
-    [loadWhitelist, loadLatest],
-  );
-
-  useEffect(() => registerScanHandler("port-scanner", () => void startScan()), [startScan]);
-
-  useEffect(() => {
-    let mounted = true;
-    void (async () => {
-      try {
-        const scan = await fetchLatestPortScan();
-        if (!mounted) return;
-        applyScan(scan);
-      } catch (e) {
-        if (!mounted) return;
+      if (mounted.current && version === requestVersion.current) {
         const err = e as ApiError;
         setError({ code: err.code, message: err.message });
         setPhase("error");
       }
-      if (mounted) void loadWhitelist();
+    }
+  }, []);
+
+  const connect = useCallback((id: string) => {
+    closeSocket.current?.();
+    clearPending();
+    active.current = true;
+    activeScan.current = id;
+    setPhase("scanning");
+    setScanningNow(true);
+    closeSocket.current = openScanSocket(id, {
+      onProgress: (current, total, message) => {
+        if (mounted.current && activeScan.current === id) setProgress({ current, total, message });
+      },
+      onItem: (item) => {
+        if (!mounted.current || activeScan.current !== id) return;
+        pending.current.push({ ...item, id: --liveId.current, whitelist_key: item.whitelist_key ?? "" });
+        if (frame.current === null) frame.current = requestAnimationFrame(() => {
+          frame.current = null;
+          const batch = pending.current;
+          pending.current = [];
+          if (mounted.current && activeScan.current === id) setLiveItems((rows) => [...rows, ...batch]);
+        });
+      },
+      onDone: () => {
+        if (!mounted.current || activeScan.current !== id) return;
+        active.current = false;
+        activeScan.current = null;
+        closeSocket.current?.();
+        clearPending();
+        setScanningNow(false);
+        void load(id);
+      },
+      onError: (code, message) => {
+        if (!mounted.current || activeScan.current !== id) return;
+        active.current = false;
+        activeScan.current = null;
+        closeSocket.current?.();
+        clearPending();
+        setScanningNow(false);
+        setError({ code, message });
+        setPhase("error");
+      },
+      onDisconnect: () => {
+        if (!mounted.current || activeScan.current !== id) return;
+        active.current = false;
+        activeScan.current = null;
+        closeSocket.current?.();
+        clearPending();
+        setScanningNow(false);
+        setError({ code: "WS_DISCONNECTED", message: "Mất kết nối tiến trình quét. Lượt quét có thể vẫn chạy; tải lại để tiếp tục hoặc xem kết quả." });
+        setPhase("error");
+      },
+    });
+  }, [clearPending, load]);
+
+  const retryLoad = useCallback(async () => {
+    const scan = await load();
+    if (mounted.current && scan?.status === "running") connect(scan.id);
+  }, [load, connect]);
+
+  const startScan = useCallback(async () => {
+    if (active.current) return;
+    active.current = true;
+    ++requestVersion.current;
+    setError(null);
+    setLiveItems([]);
+    clearPending();
+    setProgress({ current: 0, total: 1, message: "Đang khởi tạo lượt quét…" });
+    setPhase("scanning");
+    setScanningNow(true);
+    try {
+      const { scan_id } = await startPortScan();
+      if (mounted.current) connect(scan_id);
+    } catch (e) {
+      active.current = false;
+      setScanningNow(false);
+      if (mounted.current) {
+        const err = e as ApiError;
+        setError({ code: err.code, message: err.message });
+        setPhase("error");
+      }
+    }
+  }, [connect, clearPending]);
+
+  const review = useCallback(async (item: ScanItem) => {
+    if (!data || reviewing || active.current) return;
+    const version = requestVersion.current;
+    setReviewing(true);
+    try {
+      if (item.review_id) await revokePortReview(item.review_id);
+      else await acknowledgePort(data.id, item.id);
+      if (mounted.current && !active.current && version === requestVersion.current) await load(data.id);
+    } catch (e) {
+      if (mounted.current && version === requestVersion.current) {
+        const err = e as ApiError;
+        setError({ code: err.code, message: err.message });
+      }
+    } finally {
+      if (mounted.current) setReviewing(false);
+    }
+  }, [data, reviewing, load]);
+
+  useEffect(() => registerScanHandler("port-scanner", () => void startScan()), [startScan]);
+  useEffect(() => {
+    mounted.current = true;
+    void (async () => {
+      const scan = await load();
+      if (mounted.current && scan?.status === "running") connect(scan.id);
     })();
     return () => {
-      mounted = false;
-      closeSocketRef.current?.();
+      mounted.current = false;
+      activeScan.current = null;
+      closeSocket.current?.();
+      clearPending();
     };
-  }, [applyScan, loadWhitelist]);
+  }, [load, connect, clearPending]);
 
-  // nav badge "cần xem" trên sidebar = mục chưa safe
-  useEffect(() => {
-    const need = data?.items?.filter((it) => needsAttention(it, whitelistKeys)).length ?? 0;
-    setBadge("port-scanner", need);
-  }, [data, whitelistKeys]);
-
-  const items = phase === "scanning" ? liveItems : data?.items ?? [];
-  const summary: ScanSummary | null = phase === "scanning" ? null : data?.summary ?? null;
-
-  return {
-    phase,
-    data,
-    items,
-    summary,
-    progress,
-    whitelist,
-    error,
-    scanId,
-    isScanning: phase === "scanning",
-    startScan,
-    markSafe,
-    unmarkSafe,
-    severityOf: (item: ScanItem): Severity => severityOf(item, whitelistKeys),
-    retryLoad: () => void loadLatest(),
-  };
+  return { phase, data, error, progress, reviewing, review, startScan, retryLoad,
+    isScanning: phase === "scanning", items: phase === "scanning" ? liveItems : data?.items ?? [],
+    summary: phase === "scanning" ? null : data?.summary ?? null };
 }
-
-export type { ScanItem, WhitelistEntry };

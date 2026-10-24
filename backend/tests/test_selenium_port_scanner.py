@@ -38,7 +38,7 @@ class TestPortScannerPageLoad:
         )
         assert len(kpi_cards) >= 4
         labels = [card.find_element(By.CSS_SELECTOR, "[data-testid='kpi-label'], .kpi-label").text for card in kpi_cards]
-        expected_labels = ["Cổng đang mở", "Nguy hiểm", "Cảnh báo", "An toàn"]
+        expected_labels = ["Endpoint", "Ưu tiên cao", "Cảnh báo", "Không có phát hiện"]
         for expected in expected_labels:
             assert any(expected.lower() in label.lower() for label in labels), f"Missing KPI: {expected}"
 
@@ -124,7 +124,7 @@ class TestPortScannerScanFlow:
         progress_text = WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='progress-message']"))
         )
-        assert "quét" in progress_text.text.lower() or "kiểm tra" in progress_text.text.lower() or "scanning" in progress_text.text.lower()
+        assert "quét" in progress_text.text.lower() or "kiểm tra" in progress_text.text.lower() or "scanning" in progress_text.text.lower() or "đánh giá" in progress_text.text.lower() or "inventory" in progress_text.text.lower()
 
     def test_scan_complete_shows_results_table(self, driver):
         driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
@@ -140,7 +140,7 @@ class TestPortScannerScanFlow:
 
         headers = table.find_elements(By.CSS_SELECTOR, "th")
         header_texts = [h.text for h in headers]
-        expected_columns = ["Trạng thái", "Cổng", "Tiến trình", "Giao thức", "Listener", "Mới", "Lý do"]
+        expected_columns = ["Mức rủi ro", "Cổng", "Tiến trình", "Giao thức", "Listener", "Review", "Thay đổi", "Lý do"]
         for expected in expected_columns:
             assert any(expected.lower() in h.lower() for h in header_texts), f"Missing column: {expected}"
 
@@ -157,15 +157,13 @@ class TestPortScannerResultsTable:
         btn.click()
 
         WebDriverWait(driver, 60).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='data-table'] tbody tr, .data-table tbody tr, table tbody tr"))
+            EC.invisibility_of_element_located((By.CSS_SELECTOR, "[data-testid='progress-bar']"))
         )
-
-        rows = driver.find_elements(By.CSS_SELECTOR, "[data-testid='data-table'] tbody tr, .data-table tbody tr, table tbody tr")
-        if rows:
-            first_row = rows[0]
-            port_cell = first_row.find_element(By.CSS_SELECTOR, "td:nth-child(2)")
-            font_family = port_cell.value_of_css_property("font-family")
-            assert "mono" in font_family.lower() or "JetBrains Mono" in font_family
+        font_family = WebDriverWait(driver, 10).until(lambda d: d.execute_script("""
+            const cell = document.querySelector('table tbody tr td:nth-child(2)');
+            return cell && getComputedStyle(cell).fontFamily;
+        """))
+        assert "mono" in font_family.lower() or "JetBrains Mono" in font_family
 
     def test_status_badge_shows_correct_colors(self, driver):
         driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
@@ -216,7 +214,7 @@ class TestPortScannerWhitelistActions:
         action_buttons = driver.find_elements(By.CSS_SELECTOR, "[data-testid='mark-safe-btn'], .mark-safe-btn, .row-actions button")
         if action_buttons:
             btn = action_buttons[0]
-            assert "Đánh dấu an toàn" in btn.text or "Mark safe" in btn.text
+            assert "Xác nhận đã xem" in btn.text
 
     def test_click_mark_safe_changes_to_unmark(self, driver):
         driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
@@ -236,7 +234,7 @@ class TestPortScannerWhitelistActions:
             WebDriverWait(driver, 5).until(
                 lambda d: action_buttons[0].text != initial_text
             )
-            assert "Bỏ an toàn" in action_buttons[0].text or "Unmark" in action_buttons[0].text
+            assert "Hủy xác nhận" in action_buttons[0].text
 
 
 @pytest.mark.selenium

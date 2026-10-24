@@ -5,7 +5,7 @@ from datetime import datetime
 
 from sqlalchemy import select
 
-from helpers import fake_conn
+from helpers import fake_conn, FakeProcess
 from storage.db import Scan, ScanItem, db
 
 
@@ -56,7 +56,7 @@ async def test_scan_summary_correct(patch_psutil, port_manifest):
     """CL-LC-004: Port 4444(danger) + 80(safe) -> summary."""
     from core.executor import execute_scan
 
-    patch_psutil([fake_conn("127.0.0.1", 4444), fake_conn("127.0.0.1", 80)])
+    patch_psutil([fake_conn("0.0.0.0", 4444, 1), fake_conn("127.0.0.1", 80, 1)], {1: FakeProcess("app.exe")})
     scan_id = await execute_scan(port_manifest, "lc-sum-1")
 
     with db.session() as s:
@@ -98,7 +98,7 @@ async def test_query_scan_detail(client, patch_psutil, port_manifest):
     """CL-LC-007: Scan xong -> GET /scans/{id} -> có items array."""
     from core.executor import execute_scan
 
-    patch_psutil([fake_conn("127.0.0.1", 80)])
+    patch_psutil([fake_conn("127.0.0.1", 80, 1)], {1: FakeProcess("app.exe")})
     scan_id = await execute_scan(port_manifest, "lc-detail-1")
 
     resp = client.get(f"/api/v1/modules/port-scanner/scans/{scan_id}")
@@ -109,7 +109,7 @@ async def test_query_scan_detail(client, patch_psutil, port_manifest):
     assert len(data["items"]) >= 1
     detail = data["items"][0]["detail"]
     assert detail["ip"] == detail["listener"] == "127.0.0.1"
-    assert detail["note"] == "Port mở thông thường (loopback/nội bộ)"
+    assert detail["note"] == "Không phát hiện theo tiêu chí hiện tại"
 
 
 async def test_partial_result_on_permission_denied(clean_db, patch_psutil, port_manifest):
@@ -121,7 +121,9 @@ async def test_partial_result_on_permission_denied(clean_db, patch_psutil, port_
 
     with db.session() as s:
         row = s.get(Scan, scan_id)
-        assert row.partial_result is True
+        assert row.status == "error"
+        assert row.error_message
+        assert not s.scalars(select(ScanItem).where(ScanItem.scan_id == scan_id)).all()
 
 
 async def test_started_at_before_finished_at(patch_psutil, port_manifest):

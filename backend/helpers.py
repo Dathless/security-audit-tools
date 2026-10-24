@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import socket
+from contextlib import nullcontext
 
 
 class FakeConn:
@@ -8,8 +9,10 @@ class FakeConn:
 
     def __init__(self, ip, port, pid=None, udp=False):
         self.laddr = (ip, port)
+        self.raddr = ()
+        self.family = socket.AF_INET6 if ":" in ip else socket.AF_INET
         self.type = socket.SOCK_DGRAM if udp else socket.SOCK_STREAM
-        self.status = "LISTEN"
+        self.status = "NONE" if udp else "LISTEN"
         self.pid = pid
 
 
@@ -24,6 +27,21 @@ class FakeProcess:
         if self._access_denied:
             raise PermissionError("AccessDenied")
         return self._name
+
+    def oneshot(self):
+        return nullcontext()
+
+    def exe(self):
+        self.name()
+        return "C:\\Apps\\" + self._name
+
+    def username(self):
+        self.name()
+        return "TEST\\user"
+
+    def create_time(self):
+        self.name()
+        return 1.0
 
 
 class FakePsutil:
@@ -43,13 +61,17 @@ class FakePsutil:
         self.connections = list(conns or [])
         self.proc_map = dict(proc_map or {})
         self.deny_net = False
+        self.inventory_calls = 0
+        self.process_calls = 0
 
     def net_connections(self, kind="inet"):
+        self.inventory_calls += 1
         if self.deny_net:
             raise self.AccessDenied("no permission to read connections")
         return self.connections
 
     def Process(self, pid):
+        self.process_calls += 1
         proc = self.proc_map.get(pid)
         if proc is not None:
             return proc

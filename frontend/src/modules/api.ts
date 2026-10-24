@@ -6,6 +6,7 @@ import type {
   ScanListItem,
   ScanWsMessage,
   WhitelistEntry,
+  PortReview,
 } from "../core/types/api";
 
 /**
@@ -130,14 +131,19 @@ export async function fetchWhitelist(): Promise<WhitelistEntry[]> {
   return request<WhitelistEntry[]>("/modules/port-scanner/whitelist");
 }
 
-export async function addToWhitelist(
-  whitelistKey: string,
-  label?: string,
-): Promise<{ id: number; created: boolean }> {
-  return request("/modules/port-scanner/whitelist", {
+export async function acknowledgePort(scanId: string, itemId: number): Promise<PortReview> {
+  return request("/modules/port-scanner/reviews", {
     method: "POST",
-    body: JSON.stringify({ whitelist_key: whitelistKey, label: label ?? "" }),
+    body: JSON.stringify({ scan_id: scanId, item_id: itemId }),
   });
+}
+
+export async function fetchPortReviews(page = 1): Promise<{ items: PortReview[]; page: number; page_size: number; total: number }> {
+  return request(`/modules/port-scanner/reviews?page=${page}&page_size=20`);
+}
+
+export async function revokePortReview(id: number): Promise<{ id: number; deleted: boolean }> {
+  return request(`/modules/port-scanner/reviews/${id}`, { method: "DELETE" });
 }
 
 export async function removeFromWhitelist(entryId: number): Promise<{ id: number; deleted: boolean }> {

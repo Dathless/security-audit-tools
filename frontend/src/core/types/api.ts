@@ -4,6 +4,13 @@ export type Severity = "safe" | "warning" | "danger";
 
 export interface ScanSummary {
   total_open?: number;
+  total_endpoints?: number;
+  unique_ports?: number;
+  unique_processes?: number;
+  metadata_incomplete_count?: number;
+  reviewed_count?: number;
+  needs_review_count?: number;
+  removed_endpoints?: { protocol: string; family: string; listener: string; port: number }[];
   total_profiles?: number;
   total_rules?: number;
   danger: number;
@@ -40,7 +47,23 @@ export interface ScanListItem {
   error_message?: string | null;
 }
 
+export interface PortOwner {
+  pid: number | null;
+  name: string | null;
+  exe: string | null;
+  username: string | null;
+  create_time?: number | null;
+  status: Record<string, string>;
+}
+
 export interface ScanItemDetail {
+  identity_version?: number;
+  assessment_version?: number;
+  family?: string;
+  exposure?: string;
+  owners?: PortOwner[];
+  change_type?: "initial" | "added" | "changed" | "unchanged";
+  previous_evidence?: { owners: PortOwner[]; severity: Severity; reasons: string[] };
   port?: number;
   listener?: string;
   ip?: string;
@@ -77,11 +100,26 @@ export interface ScanItem {
   detail: ScanItemDetail;
   whitelist_key: string;
   is_new: boolean;
+  review_status?: "reviewed" | "needs_review" | "unreviewed" | "legacy";
+  review_scope?: "scan" | "persistent" | null;
+  review_id?: number | null;
 }
 
 export interface ScanDetail extends ScanListItem {
   items: ScanItem[];
   module_id?: string;
+  assessment_status?: "legacy" | "current";
+}
+
+export interface PortReview {
+  id: number;
+  endpoint_key: string;
+  label: string;
+  scan_id: string;
+  scope: "scan" | "persistent";
+  note: string | null;
+  reviewed_at: string;
+  expired_at: string | null;
 }
 
 export interface WhitelistEntry {
@@ -101,7 +139,7 @@ export type ScanWsMessage =
   | { type: "progress"; current: number; total: number; message: string }
   | {
       type: "item_found";
-      item: { id?: number; severity: Severity; title: string; detail: ScanItemDetail; is_new: boolean };
+      item: { id?: number; whitelist_key?: string; severity: Severity; title: string; detail: ScanItemDetail; is_new: boolean };
     }
   | {
       type: "done";

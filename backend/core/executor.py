@@ -21,6 +21,10 @@ async def dispatch_scan(manifest: ModuleManifest) -> str:
     """API wrapper: tạo record running, chạy scan nền, trả scan_id ngay."""
     scan_id = uuid.uuid4().hex
     with db.session() as s:
+        if manifest.meta.get("serialize_scans") and s.scalar(
+            select(Scan.id).where(Scan.module_id == manifest.id, Scan.status == "running").limit(1)
+        ):
+            raise ScanError("SCAN_ALREADY_RUNNING", "Module đang có lượt quét hoạt động.")
         s.add(Scan(id=scan_id, module_id=manifest.id, status="running", started_at=datetime.utcnow()))
         s.commit()
     asyncio.create_task(execute_scan(manifest, scan_id))
@@ -33,7 +37,6 @@ async def execute_scan(manifest: ModuleManifest, scan_id: str) -> None:
     Đây là nơi duy nhất bọc exception của mọi module (mục 8 docs/architecture/backend.md).
     """
     module_id = manifest.id
-    scanner = manifest.scanner_cls()
     logger.info("Scan bắt đầu: module=%s scan_id=%s", module_id, scan_id)
 
     # Đảm bảo record scan tồn tại (dispatch_scan tạo trước khi chạy nền;
@@ -49,19 +52,27 @@ async def execute_scan(manifest: ModuleManifest, scan_id: str) -> None:
             {"type": "progress", "current": current, "total": total, "message": message},
         )
 
+    committed = False
     try:
+        scanner = manifest.scanner_cls()
         result = await scanner.run(progress_cb=progress_cb)
-
+        item_events = []
         with db.session() as s:
-            prev = _previous_scan(s, module_id, scan_id)
+            identity_version = manifest.meta.get("identity_version")
+            prev = _previous_scan(s, module_id, scan_id, identity_version)
+            if identity_version is not None:
+                result.summary["baseline_scan_id"] = prev.id if prev else None
+            hook = getattr(scanner, "on_persist", None)
+            if hook:
+                hook(s, scan_id, result, prev)
             prev_keys = _keys_of_scan(s, prev.id) if prev else set()
             whitelisted = _whitelist_keys(s, module_id)
             current_keys = set()
 
             for item in result.items:
                 key = scanner.get_whitelist_key(item)
-                severity = "safe" if key in whitelisted else item.severity
-                is_new = key not in prev_keys
+                severity = "safe" if manifest.meta.get("whitelist_override", True) and key in whitelisted else item.severity
+                is_new = key not in prev_keys and (prev is not None or identity_version is None)
                 current_keys.add(key)
                 s.add(
                     ScanItem(
@@ -74,8 +85,7 @@ async def execute_scan(manifest: ModuleManifest, scan_id: str) -> None:
                         is_new=is_new,
                     )
                 )
-                await event_bus.publish(
-                    f"scan.{scan_id}.item",
+                item_events.append(
                     {
                         "type": "item_found",
                         "item": {
@@ -83,11 +93,12 @@ async def execute_scan(manifest: ModuleManifest, scan_id: str) -> None:
                             "title": item.title,
                             "detail": item.detail,
                             "is_new": is_new,
+                            "whitelist_key": key,
                         },
                     },
                 )
 
-            for gone_key in sorted(prev_keys - current_keys):
+            for gone_key in sorted(prev_keys - current_keys) if not result.partial_result else []:
                 s.add(
                     ScanDiffLog(
                         module_id=module_id,
@@ -115,6 +126,9 @@ async def execute_scan(manifest: ModuleManifest, scan_id: str) -> None:
             row.partial_result = result.partial_result
             s.commit()
 
+        committed = True
+        for message in item_events:
+            await event_bus.publish(f"scan.{scan_id}.item", message)
         await event_bus.publish(
             f"scan.{scan_id}.done",
             {
@@ -127,6 +141,13 @@ async def execute_scan(manifest: ModuleManifest, scan_id: str) -> None:
         )
         logger.info("Scan hoàn tất: module=%s scan_id=%s", module_id, scan_id)
 
+    except asyncio.CancelledError:
+        with db.session() as session:
+            row = session.get(Scan, scan_id)
+            unfinished = row is not None and row.status == "running"
+        if unfinished:
+            _mark_failed(scan_id, "SCAN_CANCELLED", "Lượt quét bị hủy trước khi hoàn tất.")
+        raise
     except ScanError as exc:
         logger.error("Scan bị chặn (code=%s): %s", exc.code, exc.message)
         _mark_failed(scan_id, exc.code, exc.message)
@@ -136,6 +157,8 @@ async def execute_scan(manifest: ModuleManifest, scan_id: str) -> None:
         )
     except Exception as exc:  # noqa: BLE001
         logger.exception("Scan thất bại module=%s scan_id=%s", module_id, scan_id)
+        if committed:
+            return scan_id
         _mark_failed(scan_id, "SCAN_FAILED", str(exc))
         await event_bus.publish(
             f"scan.{scan_id}.error",
@@ -155,13 +178,34 @@ def _mark_failed(scan_id: str, code: str, message: str) -> None:
             s.commit()
 
 
-def _previous_scan(session, module_id: str, exclude_scan_id: str) -> Optional[Scan]:
-    return session.execute(
+def _previous_scan(session, module_id: str, exclude_scan_id: str, identity_version=None) -> Optional[Scan]:
+    rows = session.scalars(
         select(Scan)
         .where(Scan.module_id == module_id, Scan.id != exclude_scan_id, Scan.status == "done", Scan.partial_result.is_(False))
         .order_by(Scan.started_at.desc())
-        .limit(1)
-    ).scalar_one_or_none()
+    )
+    for row in rows:
+        if identity_version is None:
+            return row
+        try:
+            if json.loads(row.summary_json or "{}").get("identity_version") == identity_version:
+                return row
+        except (ValueError, AttributeError):
+            continue
+    return None
+
+
+def recover_abandoned_scans(registry: dict) -> None:
+    """Single-process startup: interrupted serialized scans cannot remain busy."""
+    module_ids = [manifest.id for manifest in registry.values() if manifest.meta.get("serialize_scans")]
+    if not module_ids:
+        return
+    with db.session() as session:
+        for row in session.scalars(select(Scan).where(Scan.module_id.in_(module_ids), Scan.status == "running")):
+            row.status = "error"
+            row.finished_at = datetime.utcnow()
+            row.error_message = "Backend đã khởi động lại trước khi lượt quét hoàn tất."
+        session.commit()
 
 
 def _keys_of_scan(session, scan_id: str) -> set[str]:

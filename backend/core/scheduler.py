@@ -50,5 +50,11 @@ class Scheduler:
 
 async def _scheduled_scan_job(manifest) -> None:
     from core.executor import dispatch_scan
+    from core.scanner_base import ScanError
 
-    await dispatch_scan(manifest)
+    try:
+        await dispatch_scan(manifest)
+    except ScanError as exc:
+        if exc.code != "SCAN_ALREADY_RUNNING":
+            raise
+        logger.info("Bỏ lượt theo lịch vì module đang quét: %s", manifest.id)

@@ -48,3 +48,6 @@ class ScannerBase(ABC):
 
     def get_whitelist_key(self, item: ScanResultItem) -> str:
         raise NotImplementedError
+
+    def on_persist(self, session, scan_id: str, result: ScanResult, previous) -> None:
+        """Module-owned changes committed atomically with the scan snapshot."""

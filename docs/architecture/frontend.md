@@ -1,21 +1,21 @@
 # Kiến trúc frontend — Security Audit Tool
 
-Tài liệu UI/UX chính, đối chiếu với mã nguồn trên main ngày 2026-10-24. Xem [mục lục](../README.md), [backend](backend.md) và [README dự án](../../README.md).
+Tài liệu UI/UX chính, cập nhật cho Port Scanner 0.2.0 ngày 2026-10-24. Xem [mục lục](../README.md), [backend](backend.md) và [README dự án](../../README.md).
 
 ## Trạng thái hiện tại
 
 | Thành phần | Trạng thái |
 |---|---|
-| Port Scanner | Active: dashboard, radar, tìm kiếm/lọc, whitelist và tiến độ quét |
+| Port Scanner | Active: một dòng mỗi endpoint, đủ owners, risk/review riêng, trước/sau, radar và phục hồi tiến độ |
 | Firewall Check | Active: KPI profiles/rules, bằng chứng, hướng dẫn kiểm tra và tiến độ/lỗi |
 | Scan History | Chọn Port Scanner hoặc Firewall Check, phân trang và mở trang module tương ứng |
-| Settings | Token kết nối local và whitelist Port Scanner |
+| Settings | Token local, review có phân trang/hủy; whitelist legacy chỉ xem/xóa |
 | Startup Programs | Coming-soon; [kế hoạch](../plans/startup-programs.md) có journal trước/sau và hash tệp, chưa có page/API chạy được |
 | Outbound Connections | Coming-soon, chưa triển khai |
 
 Frontend dùng React/TypeScript và Vite; moduleRegistry phát hiện manifest bằng import.meta.glob. API client chung nằm trong frontend/src/modules/api.ts, types trong core/types; backend mới là nơi chạy collector và lưu snapshot. Sidebar nhận danh sách từ manifest frontend, badge từ appStore và dữ liệu backend.
 
-REST gửi X-Local-Token. Hai WebSocket dùng subprotocols sec-audit và token.<encodeURIComponent(localToken)>; không để token trong URL. Health được polling mỗi 5 giây; sự kiện scan toàn cục đồng bộ trạng thái bận khi chuyển trang. Firewall có xử lý mất kết nối và thử lại; hook dùng chung với Startup mới là đề xuất trong kế hoạch, chưa tồn tại.
+REST gửi X-Local-Token. Hai WebSocket dùng subprotocols sec-audit và token.<encodeURIComponent(localToken)>; không để token trong URL. Health được polling mỗi 5 giây; sự kiện scan toàn cục đồng bộ trạng thái bận khi chuyển trang. Port Scanner và Firewall có xử lý mất kết nối, tiếp tục scan running và thử lại; hook dùng chung với Startup mới là đề xuất trong kế hoạch, chưa tồn tại.
 
 
 ---
@@ -24,7 +24,7 @@ REST gửi X-Local-Token. Hai WebSocket dùng subprotocols sec-audit và token.<
 
 1. **Trạng thái là dữ liệu, không phải trang trí.** Đây là công cụ bảo mật — màu đỏ/vàng/xanh biểu thị mức độ rủi ro thật. Mọi màu trạng thái dùng thống nhất một bảng token duy nhất (`status-danger`, `status-warning`, `status-safe`) xuyên suốt toàn bộ ứng dụng, không để module nào tự chế màu riêng.
 2. **Mỗi module là một "trang" độc lập, tuân theo một hợp đồng bố cục chung** (page header → KPI row → panel chính), để người dùng dùng module mới mà không phải học lại cách đọc giao diện.
-3. **Không có màn hình nào coi UI chỉ có 1 module.** Sidebar, routing và trạng thái rỗng đều được thiết kế cho N module ngay từ đầu, kể cả khi hiện tại chỉ có Port Scanner.
+3. **Không có màn hình nào coi UI chỉ có 1 module.** Sidebar, routing và trạng thái rỗng được thiết kế cho N module; Port Scanner và Firewall Check đang hoạt động.
 4. **Dữ liệu kỹ thuật (port, PID, IP, timestamp) luôn dùng font mono** để dễ scan bằng mắt và căn cột chuẩn — đây là chi tiết nhỏ nhưng quan trọng với một dashboard nhiều số liệu.
 
 ---
@@ -43,9 +43,9 @@ REST gửi X-Local-Token. Hai WebSocket dùng subprotocols sec-audit và token.<
 | `--text-secondary` | `#8B93A7` | Chữ phụ, mô tả |
 | `--text-muted` | `#525B71` | Label, timestamp, chữ mờ |
 | `--accent` | `#3DA9FC` | Màu thương hiệu — dùng cho nút chính, link, nav active, focus ring. **Không** dùng để biểu thị trạng thái bảo mật. |
-| `--status-danger` | `#FF5A5F` | Cổng/mục bất thường, cần xử lý ngay |
+| `--status-danger` | `#FF5A5F` | Mức rủi ro/ưu tiên cao theo tiêu chí của module |
 | `--status-warning` | `#FFB020` | Mới phát hiện / cần xem xét |
-| `--status-safe` | `#2ECC8F` | Đã xác nhận an toàn / whitelist |
+| `--status-safe` | `#2ECC8F` | Không có phát hiện theo tiêu chí hiện tại |
 | `--status-info` | `#8B93A7` | Trung tính, thông tin tham khảo |
 
 Nguyên tắc quan trọng: **`--accent` (xanh dương) và `--status-*` là hai hệ màu tách biệt.** Xanh dương = "đây là UI, có thể bấm được". Đỏ/vàng/xanh lá = "đây là đánh giá rủi ro". Trộn hai hệ này sẽ khiến người dùng đọc nhầm mức độ nguy hiểm.
@@ -148,7 +148,7 @@ export const registry = Object.values(modules)
   title="Port Scanner"
   description="Quét toàn bộ cổng đang LISTEN..."
   actions={<Button>Quét ngay</Button>}
-  kpis={[{label:"Tổng cổng mở", value:27}, ...]}
+  kpis={[{label:"Endpoint", value:27}, ...]}
 >
   <PanelGrid>
     <Panel title="Radar cổng"><RadarMap data={...}/></Panel>
@@ -225,3 +225,11 @@ Port Scanner và Firewall Check đã có page hoạt động, dùng chung layout
 Khi triển khai [Startup Programs](../plans/startup-programs.md), bổ sung page, API/types, nhật ký thay đổi và lựa chọn lịch sử theo checklist. Không hiển thị thay đổi mới như kết luận malware hoặc khẳng định mục đăng ký startup đã chạy. Radar thuộc Port Scanner, không bắt buộc sao chép sang module khác.
 
 Chạy `pnpm lint` và `pnpm build` từ frontend; Selenium opt-in chạy từ backend theo [hướng dẫn](../../backend/tests/README_SELENIUM.md). Bằng chứng trước đây nằm trong [báo cáo Firewall/Nmap](../testing/reports/firewall-check-nmap-removal.md); chưa có bằng chứng kiểm thử cho Startup Programs.
+
+## Port Scanner 0.2.0
+
+Bảng tách TCP/UDP, IPv4/IPv6 và bind address; owners hiển thị path/user cùng trạng thái thiếu metadata. KPI raw risk không đổi khi xác nhận review. Badge review và bộ lọc “Cần xem xét/Đã xác nhận” là trạng thái riêng; Settings quản lý review có scope/expiry. Snapshot legacy không có hành động review, không bị tái phân loại.
+
+Hook ổn định callback, bỏ qua callback scan cũ, gom item live theo animation frame; khi done tải lại đúng scan_id đã lưu thay vì lấy latest có thể đã đổi. Vào trang có scan running thì nối lại WebSocket; mất kết nối hiện lỗi/tải lại, không giữ spinner vô hạn. Review endpoint gửi một POST hoặc DELETE rồi một GET refresh, không lặp theo owner.
+
+Radar chỉ là tổng quan gom theo số cổng, không thay thế bảng endpoint. Nhãn risk là “Ưu tiên cao”, “Cảnh báo”, “Không có phát hiện”; xác nhận không có nghĩa executable đã được xác minh. Xem [contract/rules](port-scanner-risk.md) và [kiểm chứng](../testing/reports/port-scanner-upgrade.md).

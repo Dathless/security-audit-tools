@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import uuid
 from datetime import datetime
 
@@ -42,8 +43,8 @@ async def test_scan_lifecycle(client, patch_psutil, port_manifest):
     assert resp.status_code == 200
     data = resp.json()["data"]
     assert data["status"] == "done"
-    assert data["items"][0]["severity"] == "danger"
-    assert data["items"][0]["whitelist_key"] == "4444"
+    assert data["items"][0]["severity"] == "warning"
+    assert json.loads(data["items"][0]["whitelist_key"]) == ["endpoint-v2", "tcp", "ipv4", "127.0.0.1", 4444]
 
 
 # ---------------------------------------------------------------------------
@@ -93,16 +94,12 @@ async def test_diff_fixture_matrix(clean_db, patch_psutil, port_manifest, c1, c2
 
     with db.session() as s:
         logs2 = s.scalars(select(ScanDiffLog).where(ScanDiffLog.scan_id == s2)).all()
-        assert sorted((l.whitelist_key for l in logs2 if l.change_type == "appeared"), key=int) == [
-            str(p) for p in sorted(appeared)
-        ]
-        assert sorted((l.whitelist_key for l in logs2 if l.change_type == "disappeared"), key=int) == [
-            str(p) for p in sorted(disappeared)
-        ]
+        assert sorted((json.loads(l.whitelist_key)[-1] for l in logs2 if l.change_type == "appeared"), ) == sorted(appeared)
+        assert sorted((json.loads(l.whitelist_key)[-1] for l in logs2 if l.change_type == "disappeared"), ) == sorted(disappeared)
         assert all(l.scan_id == s2 for l in logs2)
         # scan đầu tiên: mọi mục đều là appeared (TC-DIFF-001)
         logs1 = s.scalars(select(ScanDiffLog).where(ScanDiffLog.scan_id == s1)).all()
-        assert sorted((l.whitelist_key for l in logs1), key=int) == [str(p) for p in sorted(c1)]
+        assert sorted((json.loads(l.whitelist_key)[-1] for l in logs1), ) == sorted(c1)
 
 
 # ---------------------------------------------------------------------------
@@ -110,29 +107,20 @@ async def test_diff_fixture_matrix(clean_db, patch_psutil, port_manifest, c1, c2
 # ---------------------------------------------------------------------------
 
 
-async def test_whitelist_override_severity_via_api(client, patch_psutil, port_manifest):
-    """TC-WL-007: whitelist (tạo qua API) override danger -> safe khi scan lại."""
+async def test_review_via_api_preserves_risk_across_scans(client, patch_psutil, port_manifest):
     from core.executor import execute_scan
-
-    patch_psutil([fake_conn("127.0.0.1", 4444, pid=42)], {42: fake_process("bad.exe")})
-    scan_id = await execute_scan(port_manifest, "wl-api-1")
-    with db.session() as s:
-        item = s.scalars(select(ScanItem).where(ScanItem.scan_id == scan_id)).one()
+    patch_psutil([fake_conn("0.0.0.0", 4444, pid=42)], {42: fake_process("app.exe")})
+    await execute_scan(port_manifest, "review-api-1")
+    with db.session() as session:
+        item = session.scalar(select(ScanItem).where(ScanItem.scan_id == "review-api-1"))
+        item_id = item.id
         assert item.severity == "danger"
-        assert item.whitelist_key == "4444:bad.exe"
-
-    resp = client.post(
-        "/api/v1/modules/port-scanner/whitelist",
-        json={"whitelist_key": "4444:bad.exe", "label": "app hợp lệ"},
-    )
-    assert resp.status_code == 200
-    assert resp.json()["data"]["created"] is True
-
-    patch_psutil([fake_conn("127.0.0.1", 4444, pid=42)], {42: fake_process("bad.exe")})
-    scan_id2 = await execute_scan(port_manifest, "wl-api-2")
-    with db.session() as s:
-        item2 = s.scalars(select(ScanItem).where(ScanItem.scan_id == scan_id2)).one()
-        assert item2.severity == "safe"
+    response = client.post("/api/v1/modules/port-scanner/reviews", json={"scan_id": "review-api-1", "item_id": item_id})
+    assert response.status_code == 200
+    await execute_scan(port_manifest, "review-api-2")
+    data = client.get("/api/v1/modules/port-scanner/scans/latest").json()["data"]
+    assert data["items"][0]["severity"] == "danger"
+    assert data["items"][0]["review_status"] == "reviewed"
 
 
 # ---------------------------------------------------------------------------
@@ -154,13 +142,12 @@ def test_whitelist_db_uniqueness(client):
 async def test_transaction_rollback_on_persist_failure(patch_psutil, port_manifest, monkeypatch):
     """TC-DB-005: lỗi giữa lúc persist -> rollback, không có scan item mồ côi."""
     from core import executor as executor_mod
-    from core.event_bus import event_bus
+    from modules.port_scanner.scanner import PortScannerModule
 
-    async def _boom(topic, message):
-        if topic.endswith(".item"):
-            raise RuntimeError("publish item fail")
+    def _boom(self, session, scan_id, result, previous):
+        raise RuntimeError("snapshot persist fail")
 
-    monkeypatch.setattr(event_bus, "publish", _boom)
+    monkeypatch.setattr(PortScannerModule, "on_persist", _boom)
     patch_psutil([fake_conn("127.0.0.1", 4444)])
     scan_id = await executor_mod.execute_scan(port_manifest, "rollback-1")
 
@@ -240,10 +227,10 @@ async def test_diff_mix_appeared_and_disappeared(patch_psutil, port_manifest):
 
     with db.session() as s:
         logs = s.scalars(select(ScanDiffLog).where(ScanDiffLog.scan_id == "diff-mix-2")).all()
-        appeared = sorted([l.whitelist_key for l in logs if l.change_type == "appeared"], key=int)
-        disappeared = sorted([l.whitelist_key for l in logs if l.change_type == "disappeared"], key=int)
-        assert appeared == ["8080"]
-        assert disappeared == ["443"]
+        appeared = sorted([json.loads(l.whitelist_key)[-1] for l in logs if l.change_type == "appeared"], )
+        disappeared = sorted([json.loads(l.whitelist_key)[-1] for l in logs if l.change_type == "disappeared"], )
+        assert appeared == [8080]
+        assert disappeared == [443]
 
 
 async def test_diff_is_new_flag(patch_psutil, port_manifest):
@@ -258,9 +245,9 @@ async def test_diff_is_new_flag(patch_psutil, port_manifest):
 
     with db.session() as s:
         items = s.scalars(select(ScanItem).where(ScanItem.scan_id == "diff-new-2")).all()
-        by_key = {it.whitelist_key: it.is_new for it in items}
-        assert by_key["80"] is False
-        assert by_key["443"] is True
+        by_key = {json.loads(it.whitelist_key)[-1]: it.is_new for it in items}
+        assert by_key[80] is False
+        assert by_key[443] is True
 
 
 async def test_diff_log_scan_id_is_current(patch_psutil, port_manifest):
@@ -293,41 +280,32 @@ async def test_diff_across_three_scans(patch_psutil, port_manifest):
 
     with db.session() as s:
         logs2 = s.scalars(select(ScanDiffLog).where(ScanDiffLog.scan_id == "diff-3s-2")).all()
-        appeared2 = sorted([l.whitelist_key for l in logs2 if l.change_type == "appeared"], key=int)
-        assert appeared2 == ["443"]
+        appeared2 = sorted([json.loads(l.whitelist_key)[-1] for l in logs2 if l.change_type == "appeared"], )
+        assert appeared2 == [443]
 
         logs3 = s.scalars(select(ScanDiffLog).where(ScanDiffLog.scan_id == "diff-3s-3")).all()
-        disappeared3 = sorted([l.whitelist_key for l in logs3 if l.change_type == "disappeared"], key=int)
-        assert disappeared3 == ["443"]
+        disappeared3 = sorted([json.loads(l.whitelist_key)[-1] for l in logs3 if l.change_type == "disappeared"], )
+        assert disappeared3 == [443]
 
 
-async def test_concurrent_scans_allowed(patch_psutil, port_manifest, monkeypatch):
-    """TC-ERR-004: hai scan gần đồng thời -> chạy song song, cả hai đều done."""
+async def test_concurrent_port_scan_is_rejected_then_retry_succeeds(patch_psutil, port_manifest, monkeypatch):
     from core.executor import dispatch_scan
-
+    from core.scanner_base import ScanError
     patch_psutil([fake_conn("127.0.0.1", 8080)])
-
-    spawned: list = []
-    orig_create_task = asyncio.create_task
-
-    def _spy(coro, *args, **kwargs):
-        task = orig_create_task(coro, *args, **kwargs)
+    spawned = []
+    original = asyncio.create_task
+    def capture(coroutine):
+        task = original(coroutine)
         spawned.append(task)
         return task
-
-    monkeypatch.setattr(asyncio, "create_task", _spy)
-
-    id1 = await dispatch_scan(port_manifest)
-    id2 = await dispatch_scan(port_manifest)
-    assert id1 != id2
-
-    with db.session() as s:
-        rows = s.execute(select(Scan).where(Scan.id.in_([id1, id2]))).scalars().all()
-        assert len(rows) == 2
-        assert all(r.status == "running" for r in rows)
-
+    monkeypatch.setattr(asyncio, "create_task", capture)
+    first = await dispatch_scan(port_manifest)
+    with pytest.raises(ScanError) as error:
+        await dispatch_scan(port_manifest)
+    assert error.value.code == "SCAN_ALREADY_RUNNING"
     await asyncio.gather(*spawned)
-
-    with db.session() as s:
-        rows = s.execute(select(Scan).where(Scan.id.in_([id1, id2]))).scalars().all()
-        assert all(r.status == "done" for r in rows)
+    second = await dispatch_scan(port_manifest)
+    await asyncio.gather(*spawned)
+    assert first != second
+    with db.session() as session:
+        assert session.get(Scan, first).status == session.get(Scan, second).status == "done"

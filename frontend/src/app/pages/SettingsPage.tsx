@@ -6,9 +6,9 @@ import { PanelGrid } from "../../design-system/components/PanelGrid";
 import { Button } from "../../design-system/components/Button";
 import { StatusBadge } from "../../design-system/components/StatusBadge";
 import { ErrorBanner } from "../../design-system/components/ErrorBanner";
-import { fetchModules, fetchWhitelist, getLocalToken, setLocalToken } from "../../modules/api";
-import { useAppState } from "../../core/appStore";
-import type { BackendModule, WhitelistEntry } from "../../core/types/api";
+import { fetchModules, fetchWhitelist, fetchPortReviews, revokePortReview, removeFromWhitelist, getLocalToken, setLocalToken } from "../../modules/api";
+import { setBadge, useAppState } from "../../core/appStore";
+import type { BackendModule, PortReview, WhitelistEntry } from "../../core/types/api";
 import "./SettingsPage.css";
 
 export function SettingsPage(): ReactElement {
@@ -17,12 +17,39 @@ export function SettingsPage(): ReactElement {
   const [saved, setSaved] = useState(false);
   const [modules, setModules] = useState<BackendModule[]>([]);
   const [whitelist, setWhitelist] = useState<WhitelistEntry[]>([]);
+  const [reviews, setReviews] = useState<PortReview[]>([]);
+  const [reviewPage, setReviewPage] = useState(1);
+  const [reviewTotal, setReviewTotal] = useState(0);
+  const [revision, setRevision] = useState(0);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   useEffect(() => {
+    let current = true;
+    fetchPortReviews(reviewPage).then((response) => {
+      if (current) { setReviews(response.items); setReviewTotal(response.total); setReviewError(null); }
+    }).catch((error: Error) => { if (current) setReviewError(error.message); });
+    return () => { current = false; };
+  }, [reviewPage, revision]);
+
+  async function revoke(id: number): Promise<void> {
+    try { await revokePortReview(id); setRevision((value) => value + 1); }
+    catch (error) { setReviewError((error as Error).message); }
+  }
+
+  useEffect(() => {
+    let current = true;
     fetchModules()
-      .then(setModules)
-      .catch(() => setModules([]));
-  }, []);
+      .then((items) => {
+        if (!current) return;
+        setModules(items);
+        items.forEach((module) => {
+          const summary = module.last_scan?.summary;
+          setBadge(module.id, summary?.needs_review_count ?? (summary?.danger || 0) + (summary?.warning || 0));
+        });
+      })
+      .catch(() => { if (current) setModules([]); });
+    return () => { current = false; };
+  }, [revision]);
 
   useEffect(() => {
     fetchWhitelist()
@@ -34,6 +61,7 @@ export function SettingsPage(): ReactElement {
     e.preventDefault();
     setLocalToken(token);
     setSaved(true);
+    setRevision((value) => value + 1);
     window.setTimeout(() => setSaved(false), 1600);
   }
 
@@ -88,7 +116,17 @@ export function SettingsPage(): ReactElement {
           </ul>
         </Panel>
 
-        <Panel title="Whitelist" subtitle="Các mục đã đánh dấu an toàn, được giữ qua các lượt quét.">
+        <Panel title="Xác nhận endpoint" subtitle="Bản ghi đã xem xét; không xác nhận an toàn hoặc thay đổi mức rủi ro.">
+          {reviewError && <ErrorBanner title="Không tải được review" message={reviewError} />}
+          <ul className="whitelist-list" data-testid="port-reviews-list">
+            {reviews.length === 0 ? <li>Chưa có xác nhận.</li> : reviews.map((record) => <li className="whitelist-item" key={record.id}>
+              <span>{record.label} · {record.scope === "scan" ? "Chỉ lượt đã xem" : "Theo bằng chứng"} · {record.expired_at ? "Hết hiệu lực" : "Còn lưu"}</span>
+              <Button variant="subtle" size="sm" onClick={() => void revoke(record.id)}>Hủy xác nhận</Button>
+            </li>)}
+          </ul>
+          <div className="settings-actions"><Button variant="subtle" disabled={reviewPage <= 1} onClick={() => setReviewPage((page) => page - 1)}>Trước</Button><span>Trang {reviewPage} · {reviewTotal} bản ghi</span><Button variant="subtle" disabled={reviewPage * 20 >= reviewTotal} onClick={() => setReviewPage((page) => page + 1)}>Sau</Button></div>
+        </Panel>
+        <Panel title="Whitelist cũ" subtitle="Chỉ đọc/xóa; không tự áp dụng vào đánh giá mới. Quét lại rồi xác nhận endpoint.">
           <ul className="whitelist-list" data-testid="whitelist-list">
             {whitelist.length === 0 ? (
               <li className="whitelist-item" data-testid="whitelist-item">
@@ -98,7 +136,7 @@ export function SettingsPage(): ReactElement {
               whitelist.map((w) => (
                 <li key={w.id} className="whitelist-item" data-testid="whitelist-item">
                   <span className="whitelist-label">{w.label || w.whitelist_key}</span>
-                  <StatusBadge tone="safe" label="An toàn" />
+                  <Button variant="subtle" size="sm" onClick={() => void removeFromWhitelist(w.id).then(() => fetchWhitelist()).then(setWhitelist).catch((error: Error) => setReviewError(error.message))}>Xóa mục cũ</Button>
                 </li>
               ))
             )}
