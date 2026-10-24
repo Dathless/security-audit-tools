@@ -43,6 +43,8 @@ export interface ScanListItem {
 export interface ScanItemDetail {
   port?: number;
   listener?: string;
+  ip?: string;
+  note?: string;
   pid?: number | null;
   process_name?: string;
   protocol?: string;

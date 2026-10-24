@@ -44,8 +44,8 @@ function toRow(item: ScanItem): Row {
     _pidText: d.pid != null ? String(d.pid) : "—",
     _processText: d.process_name || (d.permission_denied ? "(cần admin)" : "—"),
     _proto: d.protocol || "—",
-    _listener: d.listener || "—",
-    _reasons: Array.isArray(d.reasons) ? d.reasons : [],
+    _listener: d.listener || d.ip || "—",
+    _reasons: Array.isArray(d.reasons) ? d.reasons : d.note ? [d.note] : [],
   };
 }
 

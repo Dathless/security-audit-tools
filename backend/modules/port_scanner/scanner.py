@@ -16,14 +16,10 @@ logger = logging.getLogger(__name__)
 
 ANY_IP = {"0.0.0.0", "::"}
 
-SERVICE_PORT_MAP: dict[int, str] = {
-    22: "SSH",
-    80: "HTTP",
-    443: "HTTPS",
-    3306: "MySQL",
-    5432: "PostgreSQL",
-    6379: "Redis",
-    27017: "MongoDB",
+REASON_NOTES = {
+    "PORT_IN_RISKY_LIST": "Nằm trong danh sách cổng rủi ro đã biết",
+    "LISTENING_ON_ALL_INTERFACES": "Đang lắng nghe trên mọi giao diện (0.0.0.0/::)",
+    "PROCESS_IDENTIFICATION_FAILED": "Cần quyền Administrator để lấy tên tiến trình",
 }
 
 
@@ -52,10 +48,13 @@ class PortScannerModule(ScannerBase):
             detail = {
                 "port": entry["port"],
                 "listener": entry["ip"],
+                "ip": entry["ip"],
                 "pid": entry["pid"],
                 "process_name": entry["process_name"],
                 "protocol": entry["protocol"],
                 "reasons": reasons,
+                # Preserve the pre-reason-code API fields for existing clients.
+                "note": REASON_NOTES[reasons[0]] if reasons else "Port mở thông thường (loopback/nội bộ)",
                 "permission_denied": entry["permission_denied"],
             }
             items.append(
@@ -148,15 +147,7 @@ class PortScannerModule(ScannerBase):
 
     # ----------------------------------------------------------------- classify
     def _classify(self, entry: dict) -> tuple[str, list[str]]:
-        """Level 1 — Core Rules evaluation.
-
-        Priority order:
-        1. Risky Port           → DANGER
-        2. Service/Port Mismatch → WARNING
-        3. Listener Scope        → WARNING
-        4. Process Identification → WARNING
-        5. SAFE
-        """
+        """Evaluate risky ports, listener scope and process metadata permissions."""
         reasons: list[str] = []
         port = entry["port"]
 
@@ -164,14 +155,6 @@ class PortScannerModule(ScannerBase):
         if port in self.known_risky_ports:
             reasons.append("PORT_IN_RISKY_LIST")
             return "danger", reasons
-
-        # Rule 4.4 — Port / Process Mismatch
-        expected = SERVICE_PORT_MAP.get(port)
-        if expected and entry["process_name"]:
-            process_lower = entry["process_name"].lower()
-            if expected.lower() not in process_lower:
-                reasons.append("SERVICE_PORT_MISMATCH")
-                return "warning", reasons
 
         # Rule 4.2 — Listener Scope
         if entry["ip"] in ANY_IP:

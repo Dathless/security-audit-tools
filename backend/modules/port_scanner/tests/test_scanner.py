@@ -121,38 +121,48 @@ async def test_process_does_not_exist_still_returns_item(clean_db, patch_psutil)
     assert item.severity == "safe"
 
 
-async def test_service_port_mismatch(clean_db, patch_psutil):
-    """TC-SCANNER-007: port/process mismatch -> WARNING + SERVICE_PORT_MISMATCH."""
+@pytest.mark.parametrize("port,process", [(22, "nginx.exe"), (80, "nginx.exe"), (443, "httpd.exe"), (5432, "postgres.exe")])
+async def test_process_name_does_not_prove_service_mismatch(clean_db, patch_psutil, port, process):
+    """A process can legitimately listen on any port; its name is not protocol evidence."""
     from modules.port_scanner.scanner import PortScannerModule
 
-    # Port 22 with wrong process (not sshd)
-    patch_psutil([fake_conn("127.0.0.1", 22, pid=10)], {10: FakeProcess("nginx.exe")})
+    patch_psutil([fake_conn("127.0.0.1", port, pid=10)], {10: FakeProcess(process)})
 
     result = await PortScannerModule().run()
     assert len(result.items) == 1
     item = result.items[0]
-    assert item.severity == "warning"
-    assert "SERVICE_PORT_MISMATCH" in item.detail["reasons"]
+    assert item.severity == "safe"
+    assert item.detail["reasons"] == []
 
 
-async def test_service_port_match_no_mismatch(clean_db, patch_psutil):
-    """TC-SCANNER-008: port/process match -> no mismatch warning."""
+@pytest.mark.parametrize("ip,port,note", [
+    ("127.0.0.1", 8080, "Port mở thông thường (loopback/nội bộ)"),
+    ("0.0.0.0", 8080, "Đang lắng nghe trên mọi giao diện (0.0.0.0/::)"),
+    ("127.0.0.1", 4444, "Nằm trong danh sách cổng rủi ro đã biết"),
+])
+async def test_scan_preserves_legacy_detail_fields(clean_db, patch_psutil, ip, port, note):
+    patch_psutil([fake_conn(ip, port)])
+    item = (await PortScannerModule().run()).items[0]
+    assert item.detail["ip"] == item.detail["listener"] == ip
+    assert item.detail["note"] == note
+
+
+async def test_ssh_process_on_loopback_has_no_finding(clean_db, patch_psutil):
+    """A named process on a non-risky loopback port has no finding."""
     from modules.port_scanner.scanner import PortScannerModule
 
-    # Port 22 with sshd -> no mismatch
     patch_psutil([fake_conn("127.0.0.1", 22, pid=10)], {10: FakeProcess("sshd.exe")})
 
     result = await PortScannerModule().run()
     assert len(result.items) == 1
     item = result.items[0]
-    assert "SERVICE_PORT_MISMATCH" not in item.detail["reasons"]
+    assert item.detail["reasons"] == []
 
 
-async def test_risky_port_takes_priority_over_mismatch(clean_db, patch_psutil):
-    """TC-SCANNER-009: risky port + mismatch -> DANGER (risky port priority)."""
+async def test_risky_port_takes_priority_over_process_name(clean_db, patch_psutil):
+    """A familiar executable name does not override the risky port policy."""
     from modules.port_scanner.scanner import PortScannerModule
 
-    # Port 4444 with wrong process
     patch_psutil([fake_conn("127.0.0.1", 4444, pid=10)], {10: FakeProcess("nginx.exe")})
 
     result = await PortScannerModule().run()
@@ -160,7 +170,7 @@ async def test_risky_port_takes_priority_over_mismatch(clean_db, patch_psutil):
     item = result.items[0]
     assert item.severity == "danger"
     assert "PORT_IN_RISKY_LIST" in item.detail["reasons"]
-    assert "SERVICE_PORT_MISMATCH" not in item.detail["reasons"]
+    assert item.detail["reasons"] == ["PORT_IN_RISKY_LIST"]
 
 
 async def test_whitelist_key_with_process_name(clean_db, patch_psutil):

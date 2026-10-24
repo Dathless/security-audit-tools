@@ -43,7 +43,7 @@ const columns: DataColumn<RuleRow>[] = [
   { key: "direction", label: "Chiều", sortable: true },
   { key: "action", label: "Hành động", sortable: true },
   { key: "ports", label: "Giao thức / cổng", mono: true, render: (row) => <>{row.ports}<p>Cổng từ xa: {row.detail.remote_ports?.join(", ")}</p></> },
-  { key: "addresses", label: "Địa chỉ", mono: true, render: (row) => <>Nguồn: {row.addresses}<p>Cục bộ: {row.detail.local_addresses?.join(", ")}</p></> },
+  { key: "addresses", label: "Địa chỉ", mono: true, render: (row) => <>Từ xa: {row.addresses}<p>Cục bộ: {row.detail.local_addresses?.join(", ")}</p></> },
   { key: "application", label: "Chương trình / dịch vụ", render: (row) => <>{row.application}<p>Nguồn policy: {row.detail.policy_source || "—"}</p></> },
   { key: "severity", label: "Đánh giá", sortable: true, render: (row) => <Findings item={row} /> },
 ];

@@ -107,6 +107,9 @@ async def test_query_scan_detail(client, patch_psutil, port_manifest):
     assert data["id"] == scan_id
     assert isinstance(data["items"], list)
     assert len(data["items"]) >= 1
+    detail = data["items"][0]["detail"]
+    assert detail["ip"] == detail["listener"] == "127.0.0.1"
+    assert detail["note"] == "Port mở thông thường (loopback/nội bộ)"
 
 
 async def test_partial_result_on_permission_denied(clean_db, patch_psutil, port_manifest):
