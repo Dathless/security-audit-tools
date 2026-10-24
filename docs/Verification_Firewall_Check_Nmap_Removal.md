@@ -38,6 +38,20 @@ Line coverage was measured with Python's standard-library trace and a full-path 
 | Port routes | 99% |
 | Shared WebSocket | 93% |
 
+## PR #1 review and final verification
+
+The complete origin/main diff was reviewed along two independent axes. Standards found two correctness/compatibility issues; Spec found two issues, with legacy result compatibility overlapping both reports. Three distinct runtime issues were fixed:
+
+- Restore ip/note aliases on new Port Scanner results for existing API/WebSocket clients; display old stored snapshots using frontend fallbacks, without rewriting the database.
+- Remove service/protocol inference from executable names: nginx.exe, httpd.exe and postgres.exe are not evidence of a protocol mismatch.
+- Label remote firewall addresses as "Từ xa" for both inbound and outbound rules, avoiding incorrect source labels on outbound rules.
+
+The main review also restored frontend/DESIGN.md from main because README still links to it, with a note identifying the initial design scope. Independent Standards re-review confirmed its findings resolved; the main reviewer checked both Spec fixes against the plan and the regression tests.
+
+Before the runtime fixes, focused tests reproduced nine failures. Afterward, 32 focused cases passed. The final full run passed **295 tests, 0 failures, 0 errors, 0 skipped**, including 68 Chrome/Selenium cases, in 524.76 seconds with one existing TestClient deprecation warning. Evidence: backend/.pytest_cache/pr1-final.log and pr1-final.xml. Frontend lint/build and diff checks also passed. The line-coverage figures above predate these PR fixes and were not remeasured.
+
+A separate screenshot check passed using a temporary SQLite snapshot with illustrative profiles/rules. docs/screenshots/firewall-check.png contains no host scan data and is the curated UI preview for the PR. Temporary logs, test databases and screenshot tooling remain ignored. No GitHub Actions checks or protected-main requirements are configured; the merge evidence is local. Merge PR #1 only at its reviewed head SHA after pushing these fixes.
+
 ## Review and limits
 
 An independent review found three material issues: unauthenticated shared WebSockets, a stuck scan after transport failure, and stale global busy state after leaving the module. All three received regression tests and fixes. The empty-rule PowerShell path was also tested with deterministic fake cmdlets rather than the host firewall.

@@ -305,6 +305,8 @@ Lỗi collector được lưu thành lượt scan `error` và phát sự kiện 
 
 Port Scanner dùng `psutil` và không cần Nmap. Cấu hình cũ `scan_mode: nmap` được chuyển sang `socket` kèm cảnh báo log; giữ cột database cũ và dữ liệu lịch sử.
 
+Kết quả mới giữ `ip` và `note` cho client cũ, đồng thời cung cấp `listener` và `reasons`. Giao diện vẫn đọc được snapshot cũ chỉ có `ip/note`, không cần quét lại. Tên executable không đủ để suy ra dịch vụ đang dùng giao thức nào, nên không gắn cảnh báo chỉ vì tên tiến trình khác tên dịch vụ thường gắn với cổng.
+
 Tất cả cấu hình nằm trong `backend/config.yaml`:
 
 ```yaml

@@ -57,3 +57,23 @@ The user subsequently authorized professional commits and a push. This supersede
 The first sandboxed test attempt stalled before the first API test and was interrupted. The complete native run passed with Chrome and localhost servers: `python -u -m pytest --selenium -v -o faulthandler_timeout=45 --basetemp .pytest_cache/pre-push-native-20261024 --tb=short --durations=5 --junitxml=.pytest_cache/pre-push-native-20261024.xml`. Log and XML remain under backend/.pytest_cache/ and are excluded from commits.
 
 Publication destination: origin/codex/firewall-check-nmap-removal. Verify the pushed branch SHA against local HEAD; do not merge into main or force-push.
+
+## PR review and merge checklist — 2026-10-24
+
+The user subsequently authorized creating, reviewing, fixing and merging PR #1 into main. This supersedes the earlier publication-only/no-merge instruction.
+
+- [x] Create and attach draft PR: https://github.com/Dathless/security-audit-tools/pull/1.
+- [x] Review the complete origin/main diff along Standards and Spec axes, including the earlier testing commit carried by this branch.
+- [x] Restore legacy Port Scanner ip/note fields for API consumers and display old stored snapshots with frontend fallbacks.
+- [x] Remove unsupported service/protocol inference from executable names; legitimate nginx/httpd/postgres processes must not trigger mismatch warnings.
+- [x] Use direction-neutral remote address labels for inbound and outbound firewall rules.
+- [x] Restore frontend/DESIGN.md from main; README still references this document.
+- [x] Observe regression tests failing before fixes: 9 failed, 23 passed; after fixes: 32 passed. Frontend lint/build passed.
+- [x] Independent Standards re-review confirmed both findings resolved and no new substantive defect. The main reviewer checked both Spec fixes against the plan and their passing regression cases.
+- [x] Complete the browser-inclusive suite after review fixes: 295 passed, 0 failed, 0 skipped; one existing TestClient warning, 524.76 seconds. Evidence: backend/.pytest_cache/pr1-final.log and pr1-final.xml.
+- [x] Capture a Firewall Check screenshot from an isolated illustrative snapshot, without host data; the dedicated screenshot check passed.
+- [x] Review the fix diff and prepare focused fix/documentation commits. Merge must match the pushed, reviewed PR head SHA.
+
+The repository currently has no GitHub Actions checks or protected-main requirements. Local verification is the merge evidence.
+
+Merge procedure: push the reviewed commits, update the PR evidence, mark ready, recheck main/head and mergeability, then merge without admin overrides or force-push. Preserve the branch's focused commit history with a merge commit and fast-forward local main afterward. The resulting PR/Git merge record is the completion evidence.
