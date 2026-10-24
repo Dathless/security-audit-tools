@@ -41,3 +41,21 @@ def test_module_settings_custom_risky_ports():
     """CL-CS-extra: ModuleSettings.get trả custom risky ports từ config."""
     m = ModuleSettings.from_config({"known_risky_ports": [22, 80]})
     assert m.get("known_risky_ports") == [22, 80]
+
+
+async def test_legacy_nmap_config_uses_socket(clean_db, patch_psutil, monkeypatch, caplog):
+    from helpers import fake_conn
+    from core.config import config
+    from modules.port_scanner.models import PortScannerConfig
+    from modules.port_scanner.scanner import PortScannerModule
+    from storage.db import db
+
+    monkeypatch.setattr(config, "module", lambda _: ModuleSettings.from_config({"scan_mode": "nmap"}))
+    patch_psutil([fake_conn("::1", 8080)])
+    scanner = PortScannerModule()
+    assert scanner.scan_mode == "socket"
+    result = await scanner.run()
+    assert result.items[0].detail["listener"] == "::1"
+    assert "nmap" in caplog.text.lower()
+    with db.session() as session:
+        assert session.get(PortScannerConfig, "port-scanner").scan_mode == "socket"

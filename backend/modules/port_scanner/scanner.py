@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import shutil
 import socket
 from datetime import datetime
 
@@ -34,7 +33,9 @@ class PortScannerModule(ScannerBase):
 
     def __init__(self) -> None:
         settings = config.module("port-scanner")
-        self.scan_mode = str(settings.get("scan_mode", "socket"))
+        self.scan_mode = "socket"
+        if settings.get("scan_mode") == "nmap":
+            logger.warning("scan_mode=nmap đã ngừng hỗ trợ; chuyển sang psutil (socket).")
         self.known_risky_ports = {
             int(p) for p in (settings.get("known_risky_ports", []) or [4444, 1337, 31337])
         }
@@ -92,11 +93,6 @@ class PortScannerModule(ScannerBase):
 
     # ------------------------------------------------------------------ collect
     async def _collect(self, progress_cb) -> list[dict]:
-        if self.scan_mode == "nmap" and shutil.which("nmap"):
-            try:
-                return await asyncio.to_thread(self._scan_nmap)
-            except Exception:  # noqa: BLE001
-                logger.exception("Nmap quét lỗi — fallback về chế độ socket")
         if progress_cb:
             await progress_cb(0, 1, "Đang đọc danh sách kết nối (chế độ socket)...")
         try:
@@ -137,30 +133,6 @@ class PortScannerModule(ScannerBase):
                 }
             )
         entries.sort(key=lambda e: e["port"])
-        return entries
-
-    def _scan_nmap(self) -> list[dict]:
-        import nmap
-
-        host = "127.0.0.1"
-        ports = _nmap_ports(self.known_risky_ports)
-        scanner = nmap.PortScanner()
-        scanner.scan(hosts=host, ports=ports, arguments="-sT -Pn --open -T4")
-        host_data = scanner["scan"].get(host, {}) or {}
-        entries: list[dict] = []
-        for port_str, info in host_data.get("tcp", {}).items():
-            if info.get("state") != "open":
-                continue
-            entries.append(
-                {
-                    "port": int(port_str),
-                    "ip": host,
-                    "pid": None,
-                    "process_name": "",
-                    "protocol": "tcp",
-                    "permission_denied": False,
-                }
-            )
         return entries
 
     @staticmethod
@@ -233,14 +205,6 @@ class PortScannerModule(ScannerBase):
         if process_name:
             return f"{port}:{process_name}"
         return str(port)
-
-
-def _nmap_ports(risky: set[int]) -> str:
-    ranges = "1-1024"
-    extra = [p for p in risky if p > 1024]
-    if extra:
-        return f"{ranges},{','.join(str(p) for p in sorted(extra))}"
-    return ranges
 
 
 def _build_summary(items: list[ScanResultItem]) -> dict:

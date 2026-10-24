@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import sys
-import types
 
 import pytest
 from sqlalchemy import select
 
 from helpers import FakeProcess, fake_conn
-from modules.port_scanner.scanner import PortScannerModule, _build_summary, _nmap_ports
+from modules.port_scanner.scanner import PortScannerModule, _build_summary
 from storage.db import Scan, ScanDiffLog, ScanItem, WhitelistEntry, db
 
 
@@ -27,6 +25,20 @@ async def test_run_returns_empty_result(clean_db, patch_psutil):
     assert result.items == []
     assert result.summary["total_open"] == 0
     assert result.partial_result is False
+
+
+async def test_socket_inventory_keeps_udp_ipv6_and_excludes_connected_tcp(clean_db, patch_psutil, monkeypatch):
+    import sys
+
+    monkeypatch.setitem(sys.modules, "nmap", None)
+    udp = fake_conn("::", 5353, udp=True)
+    connected = fake_conn("127.0.0.1", 50000)
+    connected.status = "ESTABLISHED"
+    unbound = fake_conn("127.0.0.1", 0)
+    unbound.laddr = None
+    patch_psutil([udp, connected, unbound, fake_conn("::1", 8080)])
+    result = await PortScannerModule().run()
+    assert {(i.detail["port"], i.detail["protocol"]) for i in result.items} == {(5353, "udp"), (8080, "tcp")}
 
 
 async def test_run_classify_severities(clean_db, patch_psutil):
@@ -176,74 +188,6 @@ async def test_net_connections_access_denied_returns_partial(clean_db, patch_psu
     assert result.items[0].severity == "warning"
 
 
-# ---------------------------------------------------------------------- nmap
-async def test_nmap_unavailable_falls_back_to_socket(clean_db, patch_psutil, monkeypatch):
-    """TC-NMAP-003: nmap không cài -> fallback socket, scan vẫn thành công."""
-    from modules.port_scanner.scanner import PortScannerModule
-
-    monkeypatch.setattr("modules.port_scanner.scanner.shutil.which", lambda _: None)
-    patch_psutil([fake_conn("127.0.0.1", 8080)])
-
-    scanner = PortScannerModule()
-    scanner.scan_mode = "nmap"
-    result = await scanner.run()
-    assert len(result.items) == 1
-    assert result.items[0].detail["port"] == 8080
-
-
-async def test_nmap_execution_failure_falls_back_to_socket(clean_db, patch_psutil, monkeypatch):
-    """TC-NMAP-004: nmap tồn tại nhưng command fail -> fallback socket."""
-    from modules.port_scanner.scanner import PortScannerModule
-
-    monkeypatch.setattr("modules.port_scanner.scanner.shutil.which", lambda _: "/usr/bin/nmap")
-
-    fake_nmap = types.ModuleType("nmap")
-
-    class _Boom:
-        def __init__(self):
-            raise RuntimeError("nmap crashed")
-
-    fake_nmap.PortScanner = _Boom
-    monkeypatch.setitem(sys.modules, "nmap", fake_nmap)
-    patch_psutil([fake_conn("127.0.0.1", 8080)])
-
-    scanner = PortScannerModule()
-    scanner.scan_mode = "nmap"
-    result = await scanner.run()
-    assert len(result.items) == 1
-    assert result.items[0].detail["port"] == 8080
-
-
-async def test_nmap_scan_parses_open_ports(clean_db, monkeypatch):
-    """TC-NMAP-002: nmap scan thành công -> parse đúng port đang mở."""
-    from modules.port_scanner.scanner import PortScannerModule
-
-    monkeypatch.setattr("modules.port_scanner.scanner.shutil.which", lambda _: "/usr/bin/nmap")
-
-    fake_nmap = types.ModuleType("nmap")
-
-    class _Scanner(dict):
-        def __init__(self, host_data):
-            super().__init__()
-            self["scan"] = {"127.0.0.1": host_data}
-
-        def scan(self, hosts, ports, arguments):
-            pass
-
-    def _make_scanner():
-        return _Scanner({"tcp": {"22": {"state": "open"}, "80": {"state": "closed"}}})
-
-    fake_nmap.PortScanner = _make_scanner
-    monkeypatch.setitem(sys.modules, "nmap", fake_nmap)
-
-    scanner = PortScannerModule()
-    scanner.scan_mode = "nmap"
-    result = await scanner.run()
-    assert len(result.items) == 1
-    assert result.items[0].detail["port"] == 22
-
-
-# ------------------------------------------------------- integration (DB)
 async def test_diffing_marks_new_and_disappeared(clean_db, patch_psutil):
     from core.executor import execute_scan
 
@@ -326,23 +270,6 @@ def test_build_summary_empty():
     """UT-SC-002: _build_summary list rỗng -> totals 0."""
     result = _build_summary([])
     assert result == {"total_open": 0, "danger": 0, "warning": 0, "safe": 0}
-
-
-def test_nmap_ports_with_risky_above_1024():
-    """UT-SC-003: _nmap_ports với risky ports > 1024."""
-    result = _nmap_ports({4444, 8080})
-    assert "1-1024" in result
-    assert "4444" in result
-    assert "8080" in result
-
-
-def test_nmap_ports_no_risky_above_1024():
-    """UT-SC-004: _nmap_ports không có risky > 1024."""
-    result = _nmap_ports(set())
-    assert result == "1-1024"
-
-    result2 = _nmap_ports({80, 443})
-    assert result2 == "1-1024"
 
 
 def test_build_summary_mix_severities():
