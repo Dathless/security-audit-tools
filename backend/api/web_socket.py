@@ -3,10 +3,13 @@ from __future__ import annotations
 import json
 import logging
 from typing import Callable
+from urllib.parse import unquote
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
 
+from api.security import ApiError, require_local_token
+from core.config import config
 from core.event_bus import event_bus
 
 logger = logging.getLogger(__name__)
@@ -28,12 +31,25 @@ class _Channel:
         self._connections: dict[str, set[WebSocket]] = {}
         self._unsubs: dict[str, list[Callable[[], None]]] = {}
 
-    async def connect(self, websocket: WebSocket, key: str, patterns: list[str]) -> None:
-        await websocket.accept()
+    async def connect(self, websocket: WebSocket, key: str, patterns: list[str]) -> bool:
+        protocols = websocket.scope.get("subprotocols", [])
+        token = websocket.headers.get("x-local-token")
+        if token is None:
+            token = next((unquote(p[6:]) for p in protocols if p.startswith("token.")), None)
+        origin = websocket.headers.get("origin")
+        try:
+            require_local_token(token)
+            if origin and origin not in config.app.allowed_origins:
+                raise ApiError("INVALID_ORIGIN", "Origin không được phép.", status_code=403)
+        except ApiError:
+            await websocket.close(code=1008)
+            return False
+        await websocket.accept(subprotocol="sec-audit" if "sec-audit" in protocols else None)
         self._connections.setdefault(key, set()).add(websocket)
         unsubs = self._unsubs.setdefault(key, [])
         for pattern in patterns:
             unsubs.append(event_bus.subscribe(pattern, self._make_send(key, websocket)))
+        return True
 
     def _make_send(self, key: str, websocket: WebSocket):
         async def _send(topic: str, message: dict) -> None:
@@ -80,7 +96,8 @@ def _scan_patterns(scan_id: str) -> list[str]:
 
 @router.websocket("/ws/scan/{scan_id}")
 async def ws_scan(websocket: WebSocket, scan_id: str) -> None:
-    await scan_channel.connect(websocket, scan_id, _scan_patterns(scan_id))
+    if not await scan_channel.connect(websocket, scan_id, _scan_patterns(scan_id)):
+        return
     await _replay_scan_state(websocket, scan_id)
     try:
         while True:
@@ -127,7 +144,8 @@ async def _replay_scan_state(websocket: WebSocket, scan_id: str) -> None:
 async def ws_events(websocket: WebSocket) -> None:
     """Kênh global — mọi client đang mở nhận được scan của scheduler (mục 5.2)."""
     key = "global"
-    await global_channel.connect(websocket, key, GLOBAL_PATTERNS)
+    if not await global_channel.connect(websocket, key, GLOBAL_PATTERNS):
+        return
     try:
         while True:
             await websocket.receive_text()

@@ -112,6 +112,20 @@ export async function fetchPortScans(page = 1, pageSize = 20): Promise<{
   return request(`/modules/port-scanner/scans?page=${page}&page_size=${pageSize}`);
 }
 
+/* ---------- firewall-check ---------- */
+
+export async function startFirewallScan(): Promise<{ scan_id: string }> {
+  return request("/modules/firewall-check/scan", { method: "POST", body: "{}" });
+}
+
+export async function fetchLatestFirewallScan(): Promise<ScanDetail | null> {
+  return request("/modules/firewall-check/scans/latest");
+}
+
+export async function fetchFirewallScans(page = 1, pageSize = 20): ReturnType<typeof fetchPortScans> {
+  return request(`/modules/firewall-check/scans?page=${page}&page_size=${pageSize}`);
+}
+
 export async function fetchWhitelist(): Promise<WhitelistEntry[]> {
   return request<WhitelistEntry[]>("/modules/port-scanner/whitelist");
 }
@@ -142,6 +156,11 @@ function parseWsMessage(raw: string): ScanWsMessage | null {
   }
 }
 
+function createSocket(path: string): WebSocket {
+  const token = getLocalToken();
+  return new WebSocket(`${WS_BASE}${path}`, token ? ["sec-audit", `token.${encodeURIComponent(token)}`] : []);
+}
+
 /**
  * Subscribe vào kênh 1 scan cụ thể. Trả về hàm huỷ kết nối.
  * Gọi ngay sau khi POST /scan nhận được scan_id.
@@ -153,9 +172,12 @@ export function openScanSocket(
     onItem?: (item: Extract<ScanWsMessage, { type: "item_found" }>["item"]) => void;
     onDone?: (summary: Extract<ScanWsMessage, { type: "done" }>) => void;
     onError?: (code: string, message: string) => void;
+    onDisconnect?: () => void;
   },
 ): () => void {
-  const ws = new WebSocket(`${WS_BASE}/ws/scan/${scanId}`);
+  const ws = createSocket(`/ws/scan/${scanId}`);
+  ws.onclose = () => handlers.onDisconnect?.();
+  ws.onerror = () => handlers.onDisconnect?.();
   ws.onmessage = (ev) => {
     const msg = parseWsMessage(ev.data as string);
     if (!msg) return;
@@ -177,6 +199,8 @@ export function openScanSocket(
   return () => {
     try {
       ws.onmessage = null;
+      ws.onclose = null;
+      ws.onerror = null;
       ws.close();
     } catch {
       /* noop */
@@ -186,7 +210,7 @@ export function openScanSocket(
 
 /** Kênh global — nhận sự kiện scan của scheduler (có ai đó tự quét). */
 export function openGlobalSocket(onMessage: (msg: ScanWsMessage) => void): () => void {
-  const ws = new WebSocket(`${WS_BASE}/ws/events`);
+  const ws = createSocket("/ws/events");
   ws.onmessage = (ev) => {
     const msg = parseWsMessage(ev.data as string);
     if (msg) onMessage(msg);

@@ -3,8 +3,41 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
+import pytest
+from starlette.websockets import WebSocketDisconnect
+
 from helpers import fake_conn
 from storage.db import Scan, db
+
+
+@pytest.mark.parametrize("path", ["/ws/events", "/ws/scan/ghost-scan"])
+@pytest.mark.parametrize("token,origin", [(None, None), ("wrong", None), ("test-token", "https://untrusted.example")])
+def test_websocket_rejects_unauthorized_clients(client, path, token, origin):
+    client.headers.pop("X-Local-Token", None)
+    headers = {}
+    if token:
+        headers["X-Local-Token"] = token
+    if origin:
+        headers["Origin"] = origin
+    with pytest.raises(WebSocketDisconnect) as exc:
+        with client.websocket_connect(path, headers=headers):
+            pass
+    assert exc.value.code == 1008
+
+
+def test_browser_can_authenticate_without_token_in_url(client):
+    client.headers.pop("X-Local-Token", None)
+    with client.websocket_connect("/ws/scan/ghost-scan", subprotocols=["sec-audit", "token.test-token"], headers={"Origin": "http://127.0.0.1:5173"}) as ws:
+        assert ws.accepted_subprotocol == "sec-audit"
+
+
+def test_replay_failed_scan_preserves_error_message(client):
+    with db.session() as session:
+        session.add(Scan(id="failed-replay", module_id="firewall-check", status="error", started_at=datetime.utcnow(), error_message="Cannot read Windows Firewall"))
+        session.commit()
+    with client.websocket_connect("/ws/scan/failed-replay") as ws:
+        message = ws.receive_json()
+        assert message == {"type": "error", "code": "SCAN_FAILED", "message": "Cannot read Windows Firewall"}
 
 
 def _make_running_scan(scan_id=None) -> str:

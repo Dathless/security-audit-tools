@@ -64,6 +64,14 @@ def test_previous_scan_first_scan_returns_none(clean_db):
         assert prev is None
 
 
+def test_previous_scan_ignores_failed_running_and_partial(clean_db):
+    with db.session() as s:
+        for index, (status, partial) in enumerate([("done", False), ("error", False), ("running", False), ("done", True)]):
+            s.add(Scan(id=f"baseline-{index}", module_id="firewall-check", status=status, partial_result=partial, started_at=datetime(2026, 1, index + 1)))
+        s.commit()
+        assert _previous_scan(s, "firewall-check", "current").id == "baseline-0"
+
+
 def test_previous_scan_excludes_current(clean_db):
     """UT-EXEC-005:传入 exclude_scan_id → scan đó bị loại khỏi kết quả."""
     with db.session() as s:

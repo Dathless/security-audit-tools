@@ -3,7 +3,9 @@
 export type Severity = "safe" | "warning" | "danger";
 
 export interface ScanSummary {
-  total_open: number;
+  total_open?: number;
+  total_profiles?: number;
+  total_rules?: number;
   danger: number;
   warning: number;
   safe: number;
@@ -46,6 +48,23 @@ export interface ScanItemDetail {
   protocol?: string;
   reasons?: string[];
   permission_denied?: boolean;
+  kind?: "profile" | "rule";
+  name?: string;
+  enabled?: boolean;
+  active?: boolean;
+  default_inbound_action?: string;
+  default_outbound_action?: string;
+  profiles?: string[];
+  direction?: string;
+  action?: string;
+  local_ports?: string[];
+  remote_ports?: string[];
+  local_addresses?: string[];
+  remote_addresses?: string[];
+  program?: string;
+  service?: string;
+  policy_source?: string;
+  guidance?: string[];
   [key: string]: unknown;
 }
 

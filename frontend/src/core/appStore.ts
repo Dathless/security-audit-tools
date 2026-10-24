@@ -63,7 +63,7 @@ export function updateHealth(health: HealthInfo | null, online = true): void {
       : health
         ? health.status
         : "unknown";
-    return { ...prev, health, backendOnline: online, healthStatus };
+    return { ...prev, health, backendOnline: online, healthStatus, scanningNow: online && (health?.running_scans ?? 0) > 0 };
   });
 }
 

@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
 from api.envelope import ok
+from api.scan_results import scan_summary, scan_to_dict
 from api.security import ApiError, require_local_token
 from core.executor import dispatch_scan
 from core.module_registry import discover_modules
-from storage.db import Scan, ScanItem, WhitelistEntry, db, dt_to_iso
+from storage.db import Scan, WhitelistEntry, db, dt_to_iso
 
 MODULE_ID = "port-scanner"
 
@@ -52,7 +53,7 @@ async def latest_scan() -> dict:
         ).scalar_one_or_none()
         if row is None:
             return ok(None)
-        data = _scan_to_dict(s, row)
+        data = scan_to_dict(s, row)
     return ok(data)
 
 
@@ -62,7 +63,7 @@ async def get_scan(scan_id: str) -> dict:
         row = s.get(Scan, scan_id)
         if row is None or row.module_id != MODULE_ID:
             raise ApiError("SCAN_NOT_FOUND", "Không tìm thấy lượt quét.", status_code=404)
-        data = _scan_to_dict(s, row)
+        data = scan_to_dict(s, row)
     return ok(data)
 
 
@@ -81,7 +82,7 @@ async def list_scans(page: int = 1, page_size: int = 20) -> dict:
             .offset((page - 1) * page_size)
             .limit(page_size)
         ).scalars().all()
-        items = [_scan_summary(r) for r in rows]
+        items = [scan_summary(r) for r in rows]
     return ok({"items": items, "page": page, "page_size": page_size, "total": total})
 
 
@@ -139,42 +140,3 @@ async def remove_whitelist(entry_id: int) -> dict:
         s.delete(entry)
         s.commit()
     return ok({"id": entry_id, "deleted": True})
-
-
-# ------------------------------------------------------------------ helpers
-def _scan_summary(row: Scan) -> dict:
-    import json
-
-    return {
-        "id": row.id,
-        "status": row.status,
-        "started_at": dt_to_iso(row.started_at),
-        "finished_at": dt_to_iso(row.finished_at),
-        "summary": json.loads(row.summary_json) if row.summary_json else {},
-        "partial_result": row.partial_result,
-        "error_message": row.error_message,
-    }
-
-
-def _scan_to_dict(session, row: Scan) -> dict:
-    import json
-
-    severity_rank = {"danger": 0, "warning": 1, "safe": 2}
-    item_rows = session.execute(
-        select(ScanItem).where(ScanItem.scan_id == row.id)
-    ).scalars().all()
-    item_rows.sort(key=lambda it: severity_rank.get(it.severity, 9))
-    items = [
-        {
-            "id": it.id,
-            "severity": it.severity,
-            "title": it.title,
-            "detail": json.loads(it.detail_json) if it.detail_json else {},
-            "whitelist_key": it.whitelist_key,
-            "is_new": it.is_new,
-        }
-        for it in item_rows
-    ]
-    data = _scan_summary(row)
-    data["items"] = items
-    return data
