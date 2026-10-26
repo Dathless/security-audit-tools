@@ -11,7 +11,7 @@ interface ProgressBarProps {
 export function ProgressBar({ current, total, message }: ProgressBarProps): ReactElement {
   const percent = total > 0 ? Math.min(100, Math.round((current / total) * 100)) : 0;
   return (
-    <div className="progress" role="progressbar" data-testid="progress-bar" aria-valuemin={0} aria-valuemax={total || 0} aria-valuenow={current}>
+    <div className="progress" role="progressbar" aria-label="Tiến độ kiểm kê" data-testid="progress-bar" aria-valuemin={0} aria-valuemax={Math.max(1, total)} aria-valuenow={Math.max(0, Math.min(current, total))}>
       <div className="progress-head">
         <span className="progress-label">Đang quét</span>
         <span className="progress-count" data-testid="progress-text">
@@ -19,7 +19,7 @@ export function ProgressBar({ current, total, message }: ProgressBarProps): Reac
         </span>
       </div>
       <div className="progress-track">
-        <div className="progress-fill" style={{ width: `${percent}%` }} />
+        <div className="progress-fill" style={{ transform: `scaleX(${percent / 100})` }} />
       </div>
       {message ? (
         <p className="progress-message" data-testid="progress-message">

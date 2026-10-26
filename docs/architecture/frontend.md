@@ -1,235 +1,85 @@
 # Kiến trúc frontend — Security Audit Tool
 
-Tài liệu UI/UX chính, cập nhật cho Port Scanner 0.2.0 ngày 2026-10-24. Xem [mục lục](../README.md), [backend](backend.md) và [README dự án](../../README.md).
+UI Console dùng React 19, TypeScript và Vite. Thiết kế ba theme được duyệt ngày 2026-10-24; tiến độ và bằng chứng nằm trong [checklist](../plans/ui-console-redesign.md) và [báo cáo kiểm chứng](../testing/reports/ui-console-redesign.md). Xem thêm [backend](backend.md) và [mục lục](../README.md).
 
-## Trạng thái hiện tại
+## Cấu trúc và luồng dữ liệu
 
-| Thành phần | Trạng thái |
+- `src/app/AppShell.tsx`: sidebar, tìm module, menu modal trên màn nhỏ, breadcrumb, theme và hành động quét của module hiện tại. Health polling 5 giây và WebSocket toàn cục đồng bộ trạng thái.
+- `src/core/moduleRegistry.ts`: phát hiện `modules/*/manifest.ts` bằng `import.meta.glob`, sắp theo `navOrder`; không liệt kê module trong shell.
+- `src/core/router.ts`: hash route; `scanRegistry.ts` đăng ký hành động quét khi trang module mount.
+- `src/core/theme.ts`: catalog ba theme, xác thực preference và subscription độc lập với scan store.
+- `src/design-system/`: tokens, layout và linh kiện dùng chung. `src/modules/`: pages, hooks và trình bày bằng chứng chuyên biệt.
+- `src/modules/api.ts` và `core/types/api.ts`: API client/types hiện có. Theme không thay đổi contract, token, collector, risk hoặc review.
+
+REST gửi `X-Local-Token`; WebSocket dùng subprotocol `sec-audit` và `token.<encodeURIComponent(token)>`, không đặt token trong URL. Backend vẫn chỉ bind localhost. Port Scanner/Firewall hooks giữ xử lý ngắt kết nối, phục hồi scan running và tải đúng scan hoàn tất.
+
+## Theme và trạng thái
+
+| ID | Tên | Palette | Port Scanner trên màn rộng |
+|---|---|---|---|
+| `technical` | Technical Console — mặc định | Neutral dark / amber | Inventory trái, summary phải |
+| `graphite` | Graphite Studio | Graphite / teal | Summary phía trên inventory |
+| `light` | Light Precision | Warm white / deep blue | Summary trái, inventory phải |
+
+Ba theme dùng **cùng cây React, panel, dữ liệu và hành động**. Root `data-theme` đổi tokens và grid areas; không có page/component riêng theo theme. Dưới 1150px Port Scanner xếp inventory trước summary trong mọi theme. Điều hướng chuyển sang native dialog dưới hoặc bằng 960px.
+
+`initializeTheme()` chạy trước `createRoot`. Chỉ ID hợp lệ được lưu trong `localStorage.sec_audit_theme`; preference không hợp lệ hoặc storage bị chặn dùng Technical. Khi storage bị chặn, vẫn đổi theme được trong phiên hiện tại. Shell và Settings dùng cùng `ThemeSelector`; modal bằng chứng có selector riêng để không phải đóng bằng chứng. Đổi theme không gọi API, mở socket hoặc remount module; query, sort, lựa chọn, review và scan đang chạy được giữ nguyên.
+
+Token vẫn ưu tiên env rồi localStorage. Client bắt lỗi đọc storage để Settings và shell không crash khi không có env token; backend vẫn từ chối request thiếu token. Nếu ghi storage thất bại, Settings giữ giá trị đang nhập và báo chưa lưu được, không tạo kho token khác hoặc báo thành công giả.
+
+## Tokens và typography
+
+Tokens nằm tại `design-system/tokens/index.css`: primitives → semantic surfaces/text/action/risk → component aliases. Module phải dùng biến ngữ nghĩa, không thêm palette riêng.
+
+| Token | Technical | Graphite | Light |
+|---|---|---|---|
+| `--bg-base` | `#10120f` | `#13191d` | `#f3f4f0` |
+| `--bg-surface` | `#171a16` | `#1b2328` | `#ffffff` |
+| `--text-primary` | `#edf0e8` | `#edf3f5` | `#1e2d37` |
+| `--accent` | `#edbf66` | `#81d6c3` | `#245a80` |
+
+Action/selection accent tách khỏi severity đỏ/cam/xanh lá. Mọi risk đi kèm nhãn; xác nhận review dùng trạng thái trung tính và không đổi severity/KPI. Màu `safe` có nghĩa không phát hiện theo tiêu chí hiện tại, không phải chứng nhận an toàn.
+
+Dùng font có sẵn trên máy: Bahnschrift/Segoe UI cho tiêu đề và giao diện; Cascadia/Consolas/ui-monospace cho dữ liệu kỹ thuật. Không tải Google Fonts. Body 14px, bảng 13px, dữ liệu mono và metadata 12px; KPI dùng tabular numbers. Tên theme, nhãn và nội dung thống nhất giữa các palette.
+
+## Layout và linh kiện
+
+`ModulePageLayout` cung cấp header → metric strip → banner/content. `PanelGrid` là lưới hai cột chung, nhận thêm class cho layout module; `Panel` nhận `id` ổn định. Không hardcode số lượng module trong shell; điều hướng tìm kiếm và cuộn được, giữ nhóm General và health status.
+
+| Thành phần | Hợp đồng chính |
 |---|---|
-| Port Scanner | Active: một dòng mỗi endpoint, đủ owners, risk/review riêng, trước/sau, radar và phục hồi tiến độ |
-| Firewall Check | Active: KPI profiles/rules, bằng chứng, hướng dẫn kiểm tra và tiến độ/lỗi |
-| Scan History | Chọn Port Scanner hoặc Firewall Check, phân trang và mở trang module tương ứng |
-| Settings | Token local, review có phân trang/hủy; whitelist legacy chỉ xem/xóa |
-| Startup Programs | Coming-soon; [kế hoạch](../plans/startup-programs.md) có journal trước/sau và hash tệp, chưa có page/API chạy được |
-| Outbound Connections | Coming-soon, chưa triển khai |
+| `ThemeSelector` | `compact?`; nhãn và ID select riêng, dùng theme store |
+| `Panel` | `title`, `subtitle?`, `actions?`, `children`, `id?` |
+| `DataTable<T>` | `columns`, `rows`, `rowKey`, `renderColumn?`, `searchText?`, `maxHeight?` |
+| `EvidenceDrawer` | `open`, `title`, `onClose`, `children`, `actions?`; native dialog |
+| `ProgressBar` | `current`, `total`, `message?`; giá trị và nhãn ARIA, fill scaleX |
+| `Button` / `StatusBadge` | Biến thể hành động/severity với token chung |
 
-Frontend dùng React/TypeScript và Vite; moduleRegistry phát hiện manifest bằng import.meta.glob. API client chung nằm trong frontend/src/modules/api.ts, types trong core/types; backend mới là nơi chạy collector và lưu snapshot. Sidebar nhận danh sách từ manifest frontend, badge từ appStore và dữ liệu backend.
+DataTable giữ sort/filter nội bộ, search ID riêng cho từng bảng và vùng cuộn có tên/focus bàn phím. `searchText` bổ sung dữ liệu tìm kiếm không cần nhồi mọi thuộc tính vào cột. Filter không có kết quả hiển thị hướng dẫn đổi/xóa lọc. Chỉ bảng kỹ thuật cuộn ngang; trang không tràn viewport.
 
-REST gửi X-Local-Token. Hai WebSocket dùng subprotocols sec-audit và token.<encodeURIComponent(localToken)>; không để token trong URL. Health được polling mỗi 5 giây; sự kiện scan toàn cục đồng bộ trạng thái bận khi chuyển trang. Port Scanner và Firewall có xử lý mất kết nối, tiếp tục scan running và thử lại; hook dùng chung với Startup mới là đề xuất trong kế hoạch, chưa tồn tại.
+EvidenceDrawer dùng `showModal()`/`close()`, Escape, vòng Tab/Shift+Tab và trả focus về nút đã mở. Helper `dialogFocus.ts` cũng dùng cho menu mobile. Theme selector trong modal giữ nguyên bằng chứng đang mở. Header có một hành động quét chính; action phục hồi lỗi giữ ở đúng trạng thái.
 
+Bằng chứng Port trong scan đang chạy được gắn nhãn tạm. Khi scan lỗi hoặc mất kết nối, drawer đóng và để lộ lỗi/nút tải lại; không tra lại cùng endpoint key trong snapshot cũ rồi thay owner/risk trong modal. Bảng giữ sorting cổng/giao thức; Firewall giữ sorting chiều và hành động riêng.
 
----
+## Nội dung module
 
-## 1. Nguyên tắc thiết kế
+- **Port Scanner:** một dòng mỗi endpoint; mức rủi ro, cổng/giao thức/bind, owner chính/số lượng, review và thay đổi. Drawer giữ mọi owner, executable/user, thời điểm tạo, trạng thái từng trường, lý do/guidance và trước/sau. Tìm kiếm vẫn thấy full path/user/bind. Panel `port-inventory` và `port-summary` có mặt trong mọi theme. Metadata thiếu không suy luận an toàn; legacy giữ đánh giá cũ; partial ghi rõ không kết luận endpoint biến mất.
+- **Firewall Check:** ba profiles, KPI và rules; drawer giữ tên rule, profile, chiều/action, local/remote ports/addresses, program/service/policy source, reasons/guidance. Chỉ đọc cấu hình, không tuyên bố reachability hoặc hiệu lực tổng hợp.
+- **Scan History:** filter Port Scanner/Firewall, thời gian/trạng thái/counts và mở module; theme giữ filter đang chọn. Hiện API lấy trang đầu 50 records, chưa có điều khiển phân trang lịch sử.
+- **Settings:** Appearance, token local, module backend, review phân trang/hủy và whitelist legacy xem/xóa. Theme không thay đổi token/review hoặc quét.
+- **Startup Programs / Outbound Connections:** vẫn coming-soon. [Kế hoạch Startup Programs](../plans/startup-programs.md) chưa phải chức năng đang chạy.
 
-1. **Trạng thái là dữ liệu, không phải trang trí.** Đây là công cụ bảo mật — màu đỏ/vàng/xanh biểu thị mức độ rủi ro thật. Mọi màu trạng thái dùng thống nhất một bảng token duy nhất (`status-danger`, `status-warning`, `status-safe`) xuyên suốt toàn bộ ứng dụng, không để module nào tự chế màu riêng.
-2. **Mỗi module là một "trang" độc lập, tuân theo một hợp đồng bố cục chung** (page header → KPI row → panel chính), để người dùng dùng module mới mà không phải học lại cách đọc giao diện.
-3. **Không có màn hình nào coi UI chỉ có 1 module.** Sidebar, routing và trạng thái rỗng được thiết kế cho N module; Port Scanner và Firewall Check đang hoạt động.
-4. **Dữ liệu kỹ thuật (port, PID, IP, timestamp) luôn dùng font mono** để dễ scan bằng mắt và căn cột chuẩn — đây là chi tiết nhỏ nhưng quan trọng với một dashboard nhiều số liệu.
+## Motion và accessibility
 
----
+Dùng CSS, không thêm dependency: duration/easing/distance tokens theo theme, chuyển trang/disclosure nhỏ, hover/press/focus và progress dùng transform. Radar chỉ chạy khi scan; không có idle sweep/blink. Không animate từng dòng khi live inventory về.
 
-## 2. Design tokens
+`prefers-reduced-motion: reduce` tắt transition/animation, sweep và press transform; nội dung/giá trị progress vẫn có mặt. Kiểm tra contrast từng palette: text ≥4.5:1; control boundary/focus ≥3:1. Control chính ≥44px. Menu/drawer có nhãn, focus rõ và Escape; skip link chuyển focus vào main mà không thay hash route.
 
-### 2.1 Màu sắc
+## Thêm module và kiểm chứng
 
-| Token | Hex | Vai trò |
-|---|---|---|
-| `--bg-base` | `#0B0E14` | Nền toàn ứng dụng (near-black, ánh navy) |
-| `--bg-surface` | `#121722` | Nền sidebar, card, panel |
-| `--bg-elevated` | `#1A2130` | Hover state, phần tử nổi lên |
-| `--border` / `--border-soft` | `#242C3D` / `#1C2332` | Viền, đường chia |
-| `--text-primary` | `#E7EAF2` | Chữ chính |
-| `--text-secondary` | `#8B93A7` | Chữ phụ, mô tả |
-| `--text-muted` | `#525B71` | Label, timestamp, chữ mờ |
-| `--accent` | `#3DA9FC` | Màu thương hiệu — dùng cho nút chính, link, nav active, focus ring. **Không** dùng để biểu thị trạng thái bảo mật. |
-| `--status-danger` | `#FF5A5F` | Mức rủi ro/ưu tiên cao theo tiêu chí của module |
-| `--status-warning` | `#FFB020` | Mới phát hiện / cần xem xét |
-| `--status-safe` | `#2ECC8F` | Không có phát hiện theo tiêu chí hiện tại |
-| `--status-info` | `#8B93A7` | Trung tính, thông tin tham khảo |
+1. Thêm `modules/<module-id>/manifest.ts` với `id`, `name`, `route`, `navGroup`, `navOrder`, `status`, `Page` nếu hoạt động.
+2. Dùng ModulePageLayout và linh kiện chung; dữ liệu đặc thù ở module. Đăng ký scan handler theo mẫu module đang có.
+3. Dùng semantic tokens, stable panel IDs và cùng nội dung ở cả ba theme; chỉ CSS thay vị trí/trang trí.
+4. Kiểm tra 390x844, 1024x768, 1440x900, long values, keyboard, reduced motion và mọi trạng thái liên quan. Không thêm API/virtualization khi chưa có nhu cầu đo được.
 
-Nguyên tắc quan trọng: **`--accent` (xanh dương) và `--status-*` là hai hệ màu tách biệt.** Xanh dương = "đây là UI, có thể bấm được". Đỏ/vàng/xanh lá = "đây là đánh giá rủi ro". Trộn hai hệ này sẽ khiến người dùng đọc nhầm mức độ nguy hiểm.
-
-### 2.2 Typography
-
-| Vai trò | Font | Dùng cho |
-|---|---|---|
-| Display | `Space Grotesk` (500/600/700) | Tên module, tiêu đề trang, tên brand |
-| Body / UI | `Inter` (400/500/600) | Toàn bộ text giao diện, nút, label |
-| Mono | `JetBrains Mono` (400/500/600) | Port, PID, IP, path, timestamp, mọi dữ liệu kỹ thuật trong bảng |
-
-Type scale gợi ý:
-- Page title: 17px / 600 / Space Grotesk
-- Panel title: 14px / 600 / Space Grotesk
-- Body: 13–14px / 400–500 / Inter
-- Data trong bảng: 12.5px / Mono
-- Label/caption: 11–11.5px, uppercase, letter-spacing 0.05em, `--text-muted`
-
-### 2.3 Spacing & bo góc
-
-- Đơn vị cơ sở: 2px, dùng bội số 4/6/8/10/14/16/20/28 cho padding/margin.
-- `--radius-sm: 6px` — badge, nút, nav item
-- `--radius-md: 10px` — KPI card
-- `--radius-lg: 16px` — panel lớn
-
----
-
-## 3. Kiến trúc thông tin & bố cục
-
-```
-┌──────────┬───────────────────────────────────────────────┐
-│          │  Topbar: breadcrumb + tên module + [Quét ngay] │
-│ Sidebar  ├───────────────────────────────────────────────┤
-│          │  Page header (mô tả ngắn module)               │
-│ - Modules│  ┌────────┬────────┬────────┬────────┐         │
-│ - General│  │  KPI   │  KPI   │  KPI   │  KPI   │         │
-│          │  └────────┴────────┴────────┴────────┘         │
-│          │  ┌───────────────┬─────────────────────┐       │
-│          │  │  Panel phụ    │   Panel chính        │       │
-│          │  │ (visualization│   (bảng dữ liệu /    │       │
-│          │  │  hoặc summary)│    nội dung chi tiết) │      │
-│          │  └───────────────┴─────────────────────┘       │
-└──────────┴───────────────────────────────────────────────┘
-```
-
-**Sidebar** chia 2 nhóm cố định:
-- **Modules** — danh sách sinh tự động từ module registry (mục 4). Module chưa cài đặt xong hiển thị ở trạng thái `disabled` kèm nhãn "soon", không ẩn đi — để người dùng luôn thấy được lộ trình mở rộng của chính họ.
-- **General** — các mục không thuộc riêng module nào: Scan History (lịch sử tổng hợp mọi module), Settings.
-
-**Topbar** luôn có 3 phần cố định bất kể module nào đang mở: breadcrumb + tên module (trái), hành động toàn cục như "Quét ngay" (phải). Đây là điểm neo giúp giao diện nhất quán khi chuyển module.
-
-**Content area** theo đúng 1 khuôn cho mọi module: Page header → KPI row (tối đa 4 chỉ số) → Panels (1 panel phụ trực quan hoá + 1 panel chính chi tiết). Module không bắt buộc dùng đủ mọi phần, nhưng **không được tự bịa layout khác** — xem hợp đồng ở mục 5.
-
----
-
-## 4. Cơ chế mở rộng (phần quan trọng nhất)
-
-Mục tiêu: **thêm module mới = thêm 1 thư mục + 1 file manifest, không sửa bất kỳ file lõi nào** (sidebar, router, layout).
-
-### 4.1 Module manifest (frontend)
-
-Mỗi module khai báo 1 file `manifest.ts` duy nhất:
-
-```ts
-// modules/port-scanner/manifest.ts
-export const manifest: ModuleManifest = {
-  id: "port-scanner",
-  name: "Port Scanner",
-  icon: "▣",                     // icon token, không phải ảnh cứng
-  route: "/modules/port-scanner",
-  navGroup: "modules",
-  navOrder: 1,
-  status: "active",              // "active" | "coming-soon"
-  Page: PortScannerPage,         // component chính, tuân thủ layout contract
-};
-```
-
-### 4.2 Registry tự động
-
-`core/moduleRegistry.ts` dùng `import.meta.glob` (Vite) để tự quét mọi `modules/*/manifest.ts`, không cần liệt kê thủ công:
-
-```ts
-const modules = import.meta.glob("../modules/*/manifest.ts", { eager: true });
-export const registry = Object.values(modules)
-  .map(m => m.manifest)
-  .sort((a, b) => a.navOrder - b.navOrder);
-```
-
-- **Sidebar** render bằng cách `registry.filter(m => m.navGroup === "modules")` → không còn hardcode danh sách nav.
-- **Router** sinh route bằng cách map qua `registry` → route mới tự có khi thêm manifest.
-- Module có `status: "coming-soon"` tự động render ở dạng `disabled` trong sidebar mà không cần code riêng.
-
-### 4.3 Hợp đồng layout mà mọi module Page phải theo
-
-Để tránh mỗi module "tự vẽ" một kiểu khác nhau, `Page` component của module **không tự dựng khung trang**, mà nhận vào một layout component dùng chung:
-
-```tsx
-<ModulePageLayout
-  title="Port Scanner"
-  description="Quét toàn bộ cổng đang LISTEN..."
-  actions={<Button>Quét ngay</Button>}
-  kpis={[{label:"Endpoint", value:27}, ...]}
->
-  <PanelGrid>
-    <Panel title="Radar cổng"><RadarMap data={...}/></Panel>
-    <Panel title="Chi tiết cổng"><PortTable rows={...}/></Panel>
-  </PanelGrid>
-</ModulePageLayout>
-```
-
-`ModulePageLayout`, `Panel`, `PanelGrid`, `KpiCard`, `StatusBadge`, `DataTable` sống trong `design-system/components/` — đây là **bộ linh kiện dùng chung, chỉ core team (bạn) sửa**, module chỉ được *dùng* chứ không *sửa*. Nhờ vậy module mới không thể phá vỡ giao diện chung, và giao diện chung nâng cấp thì mọi module tự động hưởng lợi mà không phải sửa từng module.
-
-### 4.4 Vì sao cách này tránh xung đột
-
-- Không có file "trung tâm" nào liệt kê cứng tên module → không có merge conflict khi 2 module được thêm cùng lúc.
-- Style của module mới **bắt buộc dùng token trong `design-system/tokens/`**, không được định nghĩa màu/font riêng → không lệch theme.
-- Component dùng chung (`Panel`, `KpiCard`,...) đảm bảo mọi module "trông giống nhau" dù người viết là ai hoặc viết lúc nào.
-- Module ở trạng thái `coming-soon` không cần code Page thật, chỉ cần khai báo manifest → có thể lên kế hoạch UI trước khi code backend xong.
-
-### 4.5 Quy trình thêm module mới (checklist thực tế)
-
-1. Copy `modules/_template/` → `modules/ten-module-moi/`.
-2. Sửa `manifest.ts`: id, name, icon, route.
-3. Viết `Page.tsx` dùng `ModulePageLayout` + các component có sẵn trong design-system.
-4. Nếu cần trực quan hoá riêng (như radar map), đặt trong `modules/ten-module-moi/components/`, không đưa vào `design-system/` trừ khi module thứ 2 cũng cần dùng lại (lúc đó mới "nâng cấp" nó lên thành component dùng chung).
-5. Xong — không đụng `AppShell.tsx`, `router.ts`, hay `moduleRegistry.ts`.
-
----
-
-## 5. Thư viện component (trong `design-system/components/`)
-
-| Component | Mô tả | Props chính |
-|---|---|---|
-| `AppShell` | Khung sidebar + topbar cố định, bọc toàn app | — (core, không đụng) |
-| `ModulePageLayout` | Khung 1 trang module: header, KPI row, slot nội dung | `title, description, actions, kpis, children` |
-| `Panel` | Khối nội dung bo góc lớn, có title + subtitle | `title, subtitle, children` |
-| `PanelGrid` | Grid 2 cột (380px / 1fr) cho panel phụ + panel chính, tự chuyển 1 cột ở màn hẹp | `children` |
-| `KpiCard` | Thẻ chỉ số: label + số lớn (mono) + ghi chú, có biến thể màu theo `status` | `label, value, sub, tone` |
-| `StatusBadge` | Nhãn tròn nhỏ: chấm màu + text, dùng `status-*` token | `tone: danger\|warning\|safe`, `label` |
-| `DataTable` | Bảng dữ liệu, cột mono cho số liệu kỹ thuật, hover row | `columns, rows` |
-| `NavItem` | Mục trong sidebar, hỗ trợ trạng thái active/disabled + badge số | `icon, label, active, disabled, badge` |
-| `EmptyState` | Khi module chưa có dữ liệu quét (xem mục 7) | `title, description, action` |
-
----
-
-## 6. Điểm nhấn thiết kế (signature element)
-
-**Radar cổng** trong panel phụ của Port Scanner: các vòng tròn đồng tâm biểu thị dải cổng (well-known 0–1023 ở tâm → dynamic 49152–65535 ở rìa), mỗi cổng đang mở là 1 chấm đặt theo góc tương ứng với số hiệu cổng, màu theo trạng thái, chấm cảnh báo/nguy hiểm có hiệu ứng nhấp nháy nhẹ để thu hút mắt về nơi cần chú ý trước. Đây vừa là điểm nhận diện trực quan riêng của công cụ, vừa mã hoá đúng thông tin thật (không phải trang trí thuần tuý) — ẩn dụ "radar quét" phù hợp với đúng bản chất của port scanning. Các module tương lai (firewall, outbound connections) có thể có visualization riêng của mình trong đúng vị trí "panel phụ" này mà không phá layout chung.
-
----
-
-## 7. Trạng thái giao diện (states)
-
-Mọi module cần xử lý tối thiểu các trạng thái sau bằng component dùng chung, không tự chế:
-
-- **Loading (đang quét):** KPI row hiện skeleton mono-space, panel chính hiện progress dạng "đã quét 340/1024 cổng" thay vì spinner mơ hồ — vì đây là tool kỹ thuật, con số tiến trình hữu ích hơn hiệu ứng.
-- **Empty (chưa quét lần nào):** dùng `EmptyState` — tiêu đề rõ ("Chưa có dữ liệu quét"), 1 câu giải thích, và nút hành động chính ("Quét ngay") — không để trắng trang.
-- **Error (quét lỗi, ví dụ thiếu quyền admin):** hiện banner đỏ nhạt (`status-danger-soft`) ngay dưới topbar, nói rõ nguyên nhân + cách khắc phục (vd: "Cần chạy với quyền Administrator để đọc toàn bộ tiến trình"), không chỉ báo "Đã có lỗi xảy ra".
-- **Bất thường mới phát hiện:** không chỉ đổi màu badge, mà nav item của module đó ở sidebar cũng hiện `nav-badge` màu đỏ đếm số mục cần xem — để người dùng thấy ngay từ sidebar mà không cần mở từng module.
-
----
-
-## 8. Responsive & khả năng tiếp cận
-
-- Breakpoint chính ở 960px: dưới ngưỡng này, `PanelGrid` chuyển từ 2 cột sang 1 cột, sidebar có thể thu gọn thành icon-only (giữ nguyên thứ tự nav).
-- Toàn bộ màu trạng thái đạt tỷ lệ tương phản ≥ 4.5:1 trên nền `--bg-surface`.
-- Mọi phần tử tương tác (nav item, nút, hàng bảng) có `:focus-visible` outline dùng `--accent`, không phụ thuộc màu sắc đơn thuần — trạng thái nguy hiểm luôn có kèm text ("Bất thường"/"An toàn"), không chỉ dựa vào màu, để không loại trừ người dùng mù màu.
-- Dữ liệu bảng hỗ trợ sort/filter qua bàn phím (component `DataTable` cần điều này ngay từ v1, vì đây là công cụ để "đọc số liệu nhanh").
-
----
-
-## 9. Giới hạn phạm vi hiện tại
-
-Port Scanner và Firewall Check đã có page hoạt động, dùng chung layout, design tokens và components. Scan History hiện hỗ trợ hai module này; chưa có lựa chọn Startup Programs. Startup Programs và Outbound Connections giữ status coming-soon, không có dữ liệu hoặc collector thực sự.
-
-Khi triển khai [Startup Programs](../plans/startup-programs.md), bổ sung page, API/types, nhật ký thay đổi và lựa chọn lịch sử theo checklist. Không hiển thị thay đổi mới như kết luận malware hoặc khẳng định mục đăng ký startup đã chạy. Radar thuộc Port Scanner, không bắt buộc sao chép sang module khác.
-
-Chạy `pnpm lint` và `pnpm build` từ frontend; Selenium opt-in chạy từ backend theo [hướng dẫn](../../backend/tests/README_SELENIUM.md). Bằng chứng trước đây nằm trong [báo cáo Firewall/Nmap](../testing/reports/firewall-check-nmap-removal.md); chưa có bằng chứng kiểm thử cho Startup Programs.
-
-## Port Scanner 0.2.0
-
-Bảng tách TCP/UDP, IPv4/IPv6 và bind address; owners hiển thị path/user cùng trạng thái thiếu metadata. KPI raw risk không đổi khi xác nhận review. Badge review và bộ lọc “Cần xem xét/Đã xác nhận” là trạng thái riêng; Settings quản lý review có scope/expiry. Snapshot legacy không có hành động review, không bị tái phân loại.
-
-Hook ổn định callback, bỏ qua callback scan cũ, gom item live theo animation frame; khi done tải lại đúng scan_id đã lưu thay vì lấy latest có thể đã đổi. Vào trang có scan running thì nối lại WebSocket; mất kết nối hiện lỗi/tải lại, không giữ spinner vô hạn. Review endpoint gửi một POST hoặc DELETE rồi một GET refresh, không lặp theo owner.
-
-Radar chỉ là tổng quan gom theo số cổng, không thay thế bảng endpoint. Nhãn risk là “Ưu tiên cao”, “Cảnh báo”, “Không có phát hiện”; xác nhận không có nghĩa executable đã được xác minh. Xem [contract/rules](port-scanner-risk.md) và [kiểm chứng](../testing/reports/port-scanner-upgrade.md).
+Chạy `pnpm lint`, `pnpm build` trong frontend; từ backend chạy `python -m pytest` và `python -m pytest --selenium`. `tests/test_selenium_themes.py` dùng fixture database/browser hiện có, kiểm tra parity/state/persistence/motion/contrast và lưu captures bằng dữ liệu giả. Không dùng token hoặc thông tin host thật trong ảnh tài liệu.

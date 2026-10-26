@@ -109,3 +109,39 @@
   color: var(--text-secondary);
   font-size: 12.5px;
 }
+
+.settings-actions {
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.settings-module,.whitelist-item {
+  flex-wrap: wrap;
+}
+
+.settings-hint {
+  font-size: 12px;
+}
+
+.settings-input {
+  min-width: 0;
+}
+
+.settings-field {
+  min-width: 0;
+}
+
+.whitelist-item>span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-module-name {
+  overflow-wrap: anywhere;
+}
+
+.settings-field-label {
+  font-size: 13px;
+}

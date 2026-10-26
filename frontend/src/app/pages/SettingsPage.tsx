@@ -6,6 +6,7 @@ import { PanelGrid } from "../../design-system/components/PanelGrid";
 import { Button } from "../../design-system/components/Button";
 import { StatusBadge } from "../../design-system/components/StatusBadge";
 import { ErrorBanner } from "../../design-system/components/ErrorBanner";
+import { ThemeSelector } from "../../design-system/components/ThemeSelector";
 import { fetchModules, fetchWhitelist, fetchPortReviews, revokePortReview, removeFromWhitelist, getLocalToken, setLocalToken } from "../../modules/api";
 import { setBadge, useAppState } from "../../core/appStore";
 import type { BackendModule, PortReview, WhitelistEntry } from "../../core/types/api";
@@ -15,6 +16,7 @@ export function SettingsPage(): ReactElement {
   const { backendOnline } = useAppState();
   const [token, setToken] = useState(getLocalToken());
   const [saved, setSaved] = useState(false);
+  const [tokenError, setTokenError] = useState<string | null>(null);
   const [modules, setModules] = useState<BackendModule[]>([]);
   const [whitelist, setWhitelist] = useState<WhitelistEntry[]>([]);
   const [reviews, setReviews] = useState<PortReview[]>([]);
@@ -59,7 +61,13 @@ export function SettingsPage(): ReactElement {
 
   function onSave(e: FormEvent): void {
     e.preventDefault();
-    setLocalToken(token);
+    setSaved(false);
+    try { setLocalToken(token); }
+    catch {
+      setTokenError("Trình duyệt chặn lưu trữ. Cho phép localStorage rồi thử lưu lại; token chưa được lưu.");
+      return;
+    }
+    setTokenError(null);
     setSaved(true);
     setRevision((value) => value + 1);
     window.setTimeout(() => setSaved(false), 1600);
@@ -71,18 +79,22 @@ export function SettingsPage(): ReactElement {
         <ErrorBanner
           tone="warning"
           title="Backend chưa kết nối"
-          message="Không thể liên hệ backend tại 127.0.0.1:8000. Hãy chạy uvicorn để thao tác. Token dưới đây vẫn lưu được."
+          message="Chưa kết nối được backend tại 127.0.0.1:8000. Kiểm tra backend đang chạy và token nội bộ."
         />
       ) : null}
 
       <PanelGrid>
+        <Panel title="Giao diện" subtitle="Cùng dữ liệu và chức năng trong mọi theme.">
+          <ThemeSelector />
+        </Panel>
         <Panel title="Kết nối nội bộ" subtitle="Backend chỉ bind 127.0.0.1 — token bảo vệ khỏi CSRF localhost.">
+          {tokenError && <ErrorBanner title="Không lưu được token" message={tokenError} />}
           <form className="settings-form" onSubmit={onSave}>
             <label className="settings-field">
               <span className="settings-field-label">Local API token</span>
               <input
                 className="settings-input"
-                type="text"
+                type="password"
                 value={token}
                 placeholder="X-Local-Token"
                 autoComplete="off"

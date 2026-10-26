@@ -6,6 +6,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 
+def token_color(driver, name):
+    return driver.execute_script("const e=document.createElement('span');e.style.color='var('+arguments[0]+')';document.body.append(e);const color=getComputedStyle(e).color;e.remove();return color", name)
+
+
 @pytest.mark.selenium
 class TestAppShellLayout:
     """Tests for the main app shell layout (sidebar + topbar)."""
@@ -152,9 +156,8 @@ class TestDesignTokens:
     def test_background_colors_use_tokens(self, driver):
         driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         body = driver.find_element(By.TAG_NAME, "body")
-        bg_color = body.value_of_css_property("background-color")
-        # Chrome trả về dạng "rgba(r, g, b, 1)"
-        assert bg_color in ["rgb(11, 14, 20)", "rgb(18, 23, 34)", "#0B0E14", "#121722", "rgba(11, 14, 20, 1)", "rgba(18, 23, 34, 1)"]
+        bg_color = driver.execute_script("return getComputedStyle(arguments[0]).backgroundColor", body)
+        assert bg_color == token_color(driver, "--bg-base")
 
     def test_status_colors_use_correct_tokens(self, driver):
         driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
@@ -171,9 +174,10 @@ class TestDesignTokens:
         warning_badges = driver.find_elements(By.CSS_SELECTOR, "[data-testid='status-badge'][data-tone='warning'], .status-badge.warning")
         safe_badges = driver.find_elements(By.CSS_SELECTOR, "[data-testid='status-badge'][data-tone='safe'], .status-badge.safe")
 
-        for badge in danger_badges:
-            color = badge.value_of_css_property("color") or badge.value_of_css_property("background-color")
-            assert "255" in color or "ff" in color.lower()
+        for tone, badges in (("danger", danger_badges), ("warning", warning_badges), ("safe", safe_badges)):
+            for badge in badges:
+                color = driver.execute_script("return getComputedStyle(arguments[0]).color", badge)
+                assert color == token_color(driver, f"--status-{tone}")
 
     def test_mono_font_used_for_technical_data(self, driver):
         driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
@@ -188,7 +192,7 @@ class TestDesignTokens:
 
         mono_elements = driver.find_elements(By.CSS_SELECTOR, "[data-mono='true'], .mono, .font-mono, td[style*='mono']")
         if not mono_elements:
-            mono_elements = driver.find_elements(By.CSS_SELECTOR, "td:nth-child(2), td:nth-child(3), td:nth-child(4), td:nth-child(5)")
+            mono_elements = driver.find_elements(By.CSS_SELECTOR, "td.td-mono")
 
         for elem in mono_elements[:5]:
             font_family = elem.value_of_css_property("font-family")
@@ -207,9 +211,10 @@ class TestResponsiveLayout:
             EC.presence_of_all_elements_located((By.CSS_SELECTOR, "[data-testid='panel'], .panel"))
         )
 
-        panel_locations = [panel.location['y'] for panel in panels]
-        for i in range(1, len(panel_locations)):
-            assert panel_locations[i] > panel_locations[i-1], "Panels should stack vertically on mobile"
+        inventory = driver.find_element(By.ID, "port-inventory")
+        summary = driver.find_element(By.ID, "port-summary")
+        assert inventory.location["y"] < summary.location["y"], "Inventory must precede summary on narrow screens"
+        assert inventory.location["x"] == summary.location["x"]
 
     def test_desktop_viewport_shows_side_by_side_panels(self, driver):
         driver.set_window_size(1366, 768)
@@ -220,20 +225,21 @@ class TestResponsiveLayout:
         )
 
         if len(panels) >= 2:
-            first_right = panels[0].location['x'] + panels[0].size['width']
-            second_left = panels[1].location['x']
+            inventory = driver.find_element(By.ID, "port-inventory")
+            summary = driver.find_element(By.ID, "port-summary")
+            first_right = inventory.location['x'] + inventory.size['width']
+            second_left = summary.location['x']
             assert abs(first_right - second_left) < 50, "Panels should be side by side on desktop"
 
     def test_sidebar_collapses_on_narrow_screen(self, driver):
         driver.set_window_size(800, 600)
         driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
 
-        sidebar = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='sidebar'], .sidebar, aside"))
-        )
-
-        sidebar_width = sidebar.size['width']
-        assert sidebar_width <= 80 or "collapsed" in sidebar.get_attribute("class"), "Sidebar should collapse on narrow screens"
+        button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='menu-toggle']")))
+        button.click()
+        dialog = driver.find_element(By.CSS_SELECTOR, "dialog[open].mobile-navigation")
+        assert dialog.is_displayed() and dialog.size['width'] <= 320
+        assert "Port Scanner" in dialog.text
 
 
 @pytest.mark.selenium
@@ -291,25 +297,25 @@ class TestThemeTokensConsistency:
         driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         primary_buttons = driver.find_elements(By.CSS_SELECTOR, "[data-variant='primary'], .btn-primary, button.primary")
         for btn in primary_buttons:
-            bg = btn.value_of_css_property("background-color") or btn.value_of_css_property("border-color")
-            assert "61, 169, 252" in bg or "#3DA9FC" in bg.upper()
+            bg = driver.execute_script("return getComputedStyle(arguments[0]).backgroundColor", btn)
+            assert bg == token_color(driver, "--accent")
 
     def test_border_colors_use_token(self, driver):
         driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         panels = driver.find_elements(By.CSS_SELECTOR, "[data-testid='panel'], .panel, [data-testid='kpi-card'], .kpi-card")
         for panel in panels[:3]:
-            border = panel.value_of_css_property("border-color")
-            assert "36, 44, 61" in border or "#242C3D" in border.upper() or "28, 35, 50" in border or "#1C2332" in border.upper()
+            borders = driver.execute_script("const s=getComputedStyle(arguments[0]);return ['Top','Right','Bottom','Left'].filter(side=>parseFloat(s['border'+side+'Width'])>0).map(side=>s['border'+side+'Color'])", panel)
+            assert borders and all(border == token_color(driver, "--border-soft") for border in borders)
 
     def test_text_colors_use_tokens(self, driver):
         driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         primary_text = driver.find_element(By.CSS_SELECTOR, "[data-testid='page-title'], .page-title, h1")
-        color = primary_text.value_of_css_property("color")
-        assert "231, 234, 242" in color or "#E7EAF2" in color.upper()
+        color = driver.execute_script("return getComputedStyle(arguments[0]).color", primary_text)
+        assert color == token_color(driver, "--text-primary")
 
     def test_muted_text_uses_token(self, driver):
         driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
         muted_elements = driver.find_elements(By.CSS_SELECTOR, "[data-testid='kpi-sub'], .kpi-sub, .text-muted, .caption")
         for elem in muted_elements[:3]:
-            color = elem.value_of_css_property("color")
-            assert any(value in color.upper() for value in ("82, 91, 113", "#525B71", "139, 147, 167", "#8B93A7"))
+            color = driver.execute_script("return getComputedStyle(arguments[0]).color", elem)
+            assert color in (token_color(driver, "--text-muted"), token_color(driver, "--text-secondary"))

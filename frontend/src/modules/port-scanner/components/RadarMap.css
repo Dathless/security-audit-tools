@@ -13,7 +13,7 @@
 }
 
 .radar-bg {
-  fill: #0e1420;
+  fill: var(--bg-base);
   stroke: var(--border-soft);
   stroke-width: 1;
 }
@@ -28,9 +28,11 @@
 .radar-grid-1 {
   stroke-opacity: 0.9;
 }
+
 .radar-grid-2 {
   stroke-opacity: 0.7;
 }
+
 .radar-grid-3 {
   stroke-opacity: 0.5;
 }
@@ -148,7 +150,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--text-secondary);
 }
 
@@ -168,5 +170,17 @@
   width: 100%;
   justify-content: center;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 12px;
+}
+
+.radar:not(.radar-scanning) .radar-sweep,.radar:not(.radar-scanning) .radar-beam,.radar:not(.radar-scanning) .radar-dot-pulse {
+  animation: none;
+}
+
+.radar:not(.radar-scanning) .radar-sweep {
+  opacity: .25;
+}
+
+.radar:not(.radar-scanning) .radar-beam {
+  opacity: .4;
 }

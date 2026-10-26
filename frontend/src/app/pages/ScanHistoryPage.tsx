@@ -67,6 +67,10 @@ export function ScanHistoryPage(): ReactElement {
 
   const portLabels: Record<number, string> = { 2: "Endpoint", 3: "Ưu tiên cao", 5: "Không có phát hiện" };
   const historyColumns = columns.map((column, index) => {
+    if (index === 1 && moduleId === "port-scanner") return {
+      ...column,
+      render: (row: ScanListItem) => <>{column.render?.(row)}{row.status === "done" && row.summary?.assessment_version !== 2 && <span className="cell-secondary"><StatusBadge tone="info" label="Dữ liệu cũ" /></span>}</>,
+    };
     if (moduleId === "port-scanner") return { ...column, label: portLabels[index] ?? column.label };
     return index === 2
       ? { ...column, label: "Profiles / rules", render: (row: ScanListItem) => row.summary?.total_profiles != null ? `${row.summary.total_profiles} / ${row.summary.total_rules ?? 0}` : "—" }

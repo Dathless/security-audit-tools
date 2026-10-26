@@ -1,0 +1,209 @@
+{
+  "contract": "docs/plans/ui-console-redesign-design.md: same panels/data/actions in three persistent themes, no scan/API/remount on theme changes; inspectable endpoint/rule evidence and scalable manifest navigation.",
+  "targetViewports": [
+    "390x844",
+    "1024x768",
+    "1440x900"
+  ],
+  "accessibility": {
+    "status": "pass",
+    "evidence": "Chrome Selenium exercises native dialog Tab cycle, Escape and focus return, invalid/denied preference storage and reduced-motion computed styles. Token contrast measured from rendered CSS: minimum tested text/risk ratio 4.985, control boundaries 3.464, focus 7.371; primary controls >=44px. Keyboard bounded table region and unique search/select labels inspected. This is not a screen-reader certification."
+  },
+  "responsive": {
+    "status": "pass",
+    "evidence": "All three themes at exact CDP viewports 390x844,1024x768,1440x900 retain the same table DOM/content/panels and have no page-level horizontal overflow. Inventory precedes summary on narrow layouts; wide positions differ as approved. Long paths/multiple owners wrap inside the evidence drawer. Tables scroll locally. 22 injected test-only manifests exercise searchable navigation and fixed General access."
+  },
+  "contentStates": {
+    "loading": {
+      "status": "pass",
+      "evidence": "Delayed latest-inventory response shows descriptive loading placeholder and nonfabricated KPI skeletons in all three themes."
+    },
+    "empty": {
+      "status": "pass",
+      "evidence": "Empty temporary database shows no-scan explanation and existing topbar scan action in every theme."
+    },
+    "error": {
+      "status": "pass",
+      "evidence": "Controlled 500 TEST_ERROR response shows the exact inventory error and enabled reload action in every theme. Review regression verifies live evidence closes on error/disconnect before previous-snapshot data can replace it."
+    },
+    "partial": {
+      "status": "pass",
+      "evidence": "Seeded partial snapshot keeps available endpoints and explicit inventory-incomplete/no-disappearance conclusion warning in every theme."
+    },
+    "success": {
+      "status": "pass",
+      "evidence": "Seeded TCP/UDP endpoints remain separate, with raw severity counts, review state, owners and changes preserved across theme switches. Review/revoke remains one mutation plus refresh; drawer filter/state and running-scan socket counts tested."
+    },
+    "permission": {
+      "status": "pass",
+      "evidence": "Seeded missing exe/user metadata shows access-denied/unknown distinctly, with multiple owners and a long path fully inspectable; all themes keep the drawer within viewport width. Existing upgrade tests retain gone-state coverage."
+    }
+  },
+  "renderedEvidence": [
+    {
+      "viewport": "390x844",
+      "artifact": "ui-console-assets/technical-390x844.png",
+      "observation": "technical: seeded two endpoints; same panels and risk/review data; theme-specific wide positions or inventory-first narrow stack; no page overflow."
+    },
+    {
+      "viewport": "1024x768",
+      "artifact": "ui-console-assets/technical-1024x768.png",
+      "observation": "technical: seeded two endpoints; same panels and risk/review data; theme-specific wide positions or inventory-first narrow stack; no page overflow."
+    },
+    {
+      "viewport": "1440x900",
+      "artifact": "ui-console-assets/technical-1440x900.png",
+      "observation": "technical: seeded two endpoints; same panels and risk/review data; theme-specific wide positions or inventory-first narrow stack; no page overflow."
+    },
+    {
+      "viewport": "390x844",
+      "artifact": "ui-console-assets/graphite-390x844.png",
+      "observation": "graphite: seeded two endpoints; same panels and risk/review data; theme-specific wide positions or inventory-first narrow stack; no page overflow."
+    },
+    {
+      "viewport": "1024x768",
+      "artifact": "ui-console-assets/graphite-1024x768.png",
+      "observation": "graphite: seeded two endpoints; same panels and risk/review data; theme-specific wide positions or inventory-first narrow stack; no page overflow."
+    },
+    {
+      "viewport": "1440x900",
+      "artifact": "ui-console-assets/graphite-1440x900.png",
+      "observation": "graphite: seeded two endpoints; same panels and risk/review data; theme-specific wide positions or inventory-first narrow stack; no page overflow."
+    },
+    {
+      "viewport": "390x844",
+      "artifact": "ui-console-assets/light-390x844.png",
+      "observation": "light: seeded two endpoints; same panels and risk/review data; theme-specific wide positions or inventory-first narrow stack; no page overflow."
+    },
+    {
+      "viewport": "1024x768",
+      "artifact": "ui-console-assets/light-1024x768.png",
+      "observation": "light: seeded two endpoints; same panels and risk/review data; theme-specific wide positions or inventory-first narrow stack; no page overflow."
+    },
+    {
+      "viewport": "1440x900",
+      "artifact": "ui-console-assets/light-1440x900.png",
+      "observation": "light: seeded two endpoints; same panels and risk/review data; theme-specific wide positions or inventory-first narrow stack; no page overflow."
+    },
+    {
+      "viewport": "390x844",
+      "artifact": "ui-console-assets/technical-loading-390x844.png",
+      "observation": "technical loading: Delayed latest-inventory response shows descriptive loading placeholder and nonfabricated KPI skeletons in all three themes."
+    },
+    {
+      "viewport": "390x844",
+      "artifact": "ui-console-assets/graphite-loading-390x844.png",
+      "observation": "graphite loading: Delayed latest-inventory response shows descriptive loading placeholder and nonfabricated KPI skeletons in all three themes."
+    },
+    {
+      "viewport": "390x844",
+      "artifact": "ui-console-assets/light-loading-390x844.png",
+      "observation": "light loading: Delayed latest-inventory response shows descriptive loading placeholder and nonfabricated KPI skeletons in all three themes."
+    },
+    {
+      "viewport": "390x844",
+      "artifact": "ui-console-assets/technical-empty-390x844.png",
+      "observation": "technical empty: Empty temporary database shows no-scan explanation and existing topbar scan action in every theme."
+    },
+    {
+      "viewport": "390x844",
+      "artifact": "ui-console-assets/graphite-empty-390x844.png",
+      "observation": "graphite empty: Empty temporary database shows no-scan explanation and existing topbar scan action in every theme."
+    },
+    {
+      "viewport": "390x844",
+      "artifact": "ui-console-assets/light-empty-390x844.png",
+      "observation": "light empty: Empty temporary database shows no-scan explanation and existing topbar scan action in every theme."
+    },
+    {
+      "viewport": "390x844",
+      "artifact": "ui-console-assets/technical-error-390x844.png",
+      "observation": "technical error: Controlled 500 TEST_ERROR response shows the exact inventory error and enabled reload action in every theme."
+    },
+    {
+      "viewport": "390x844",
+      "artifact": "ui-console-assets/graphite-error-390x844.png",
+      "observation": "graphite error: Controlled 500 TEST_ERROR response shows the exact inventory error and enabled reload action in every theme."
+    },
+    {
+      "viewport": "390x844",
+      "artifact": "ui-console-assets/light-error-390x844.png",
+      "observation": "light error: Controlled 500 TEST_ERROR response shows the exact inventory error and enabled reload action in every theme."
+    },
+    {
+      "viewport": "390x844",
+      "artifact": "ui-console-assets/technical-partial-390x844.png",
+      "observation": "technical partial: Seeded partial snapshot keeps available endpoints and explicit inventory-incomplete/no-disappearance conclusion warning in every theme."
+    },
+    {
+      "viewport": "390x844",
+      "artifact": "ui-console-assets/graphite-partial-390x844.png",
+      "observation": "graphite partial: Seeded partial snapshot keeps available endpoints and explicit inventory-incomplete/no-disappearance conclusion warning in every theme."
+    },
+    {
+      "viewport": "390x844",
+      "artifact": "ui-console-assets/light-partial-390x844.png",
+      "observation": "light partial: Seeded partial snapshot keeps available endpoints and explicit inventory-incomplete/no-disappearance conclusion warning in every theme."
+    },
+    {
+      "viewport": "390x844",
+      "artifact": "ui-console-assets/technical-permission-390x844.png",
+      "observation": "technical permission: Seeded missing exe/user metadata shows access-denied/unknown distinctly, with multiple owners and a long path fully inspectable; all themes keep the drawer within viewport width. Existing upgrade tests retain gone-state coverage."
+    },
+    {
+      "viewport": "390x844",
+      "artifact": "ui-console-assets/graphite-permission-390x844.png",
+      "observation": "graphite permission: Seeded missing exe/user metadata shows access-denied/unknown distinctly, with multiple owners and a long path fully inspectable; all themes keep the drawer within viewport width. Existing upgrade tests retain gone-state coverage."
+    },
+    {
+      "viewport": "390x844",
+      "artifact": "ui-console-assets/light-permission-390x844.png",
+      "observation": "light permission: Seeded missing exe/user metadata shows access-denied/unknown distinctly, with multiple owners and a long path fully inspectable; all themes keep the drawer within viewport width. Existing upgrade tests retain gone-state coverage."
+    },
+    {
+      "viewport": "1440x900",
+      "artifact": "ui-console-assets/technical-settings-1440x900.png",
+      "observation": "technical settings: shared content/actions retained; Settings token masked, History filter/counts preserved, Firewall full evidence and neutral address labels retained."
+    },
+    {
+      "viewport": "1440x900",
+      "artifact": "ui-console-assets/technical-history-1440x900.png",
+      "observation": "technical history: shared content/actions retained; Settings token masked, History filter/counts preserved, Firewall full evidence and neutral address labels retained."
+    },
+    {
+      "viewport": "1440x900",
+      "artifact": "ui-console-assets/technical-firewall-evidence-1440x900.png",
+      "observation": "technical firewall-evidence: shared content/actions retained; Settings token masked, History filter/counts preserved, Firewall full evidence and neutral address labels retained."
+    },
+    {
+      "viewport": "1440x900",
+      "artifact": "ui-console-assets/graphite-settings-1440x900.png",
+      "observation": "graphite settings: shared content/actions retained; Settings token masked, History filter/counts preserved, Firewall full evidence and neutral address labels retained."
+    },
+    {
+      "viewport": "1440x900",
+      "artifact": "ui-console-assets/graphite-history-1440x900.png",
+      "observation": "graphite history: shared content/actions retained; Settings token masked, History filter/counts preserved, Firewall full evidence and neutral address labels retained."
+    },
+    {
+      "viewport": "1440x900",
+      "artifact": "ui-console-assets/graphite-firewall-evidence-1440x900.png",
+      "observation": "graphite firewall-evidence: shared content/actions retained; Settings token masked, History filter/counts preserved, Firewall full evidence and neutral address labels retained."
+    },
+    {
+      "viewport": "1440x900",
+      "artifact": "ui-console-assets/light-settings-1440x900.png",
+      "observation": "light settings: shared content/actions retained; Settings token masked, History filter/counts preserved, Firewall full evidence and neutral address labels retained."
+    },
+    {
+      "viewport": "1440x900",
+      "artifact": "ui-console-assets/light-history-1440x900.png",
+      "observation": "light history: shared content/actions retained; Settings token masked, History filter/counts preserved, Firewall full evidence and neutral address labels retained."
+    },
+    {
+      "viewport": "1440x900",
+      "artifact": "ui-console-assets/light-firewall-evidence-1440x900.png",
+      "observation": "light firewall-evidence: shared content/actions retained; Settings token masked, History filter/counts preserved, Firewall full evidence and neutral address labels retained."
+    }
+  ]
+}

@@ -23,7 +23,9 @@ const WS_BASE: string = API_BASE.replace(/^http/, "ws").replace(/\/api\/v1$/, ""
 /** Token nội bộ — ưu tiên env, fallback localStorage (cài trong Settings). */
 export function getLocalToken(): string {
   const fromEnv = (import.meta.env.VITE_LOCAL_TOKEN as string | undefined) ?? "";
-  return fromEnv || localStorage.getItem("sec_audit_local_token") || "";
+  if (fromEnv) return fromEnv;
+  try { return localStorage.getItem("sec_audit_local_token") || ""; }
+  catch { return ""; }
 }
 
 export function setLocalToken(token: string): void {

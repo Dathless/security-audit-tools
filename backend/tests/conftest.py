@@ -46,7 +46,9 @@ def backend_process(selenium_database) -> Generator[subprocess.Popen, None, None
         "from core.config import ModuleSettings; "
         "config.settings.modules['firewall-check']=ModuleSettings(enabled=True); "
         "from storage.db import db; db.configure('sqlite:///' + os.environ['SELENIUM_DATABASE']); "
-        "import uvicorn; uvicorn.run('main:app', host='127.0.0.1', port=8000)"
+        # Repeated Chrome socket teardown can stop Windows IOCP accepts (WinError 64).
+        "import uvicorn; uvicorn.run('main:app', host='127.0.0.1', port=8000, "
+        "loop='asyncio:SelectorEventLoop' if os.name == 'nt' else 'auto')"
     )
     proc = subprocess.Popen(
         [sys.executable, "-c", script],
@@ -78,11 +80,11 @@ def backend_process(selenium_database) -> Generator[subprocess.Popen, None, None
 
 
 @pytest.fixture(scope="session")
-def frontend_process(backend_process) -> Generator[subprocess.Popen, None, None]:
+def frontend_process(backend_process, request) -> Generator[subprocess.Popen, None, None]:
     """Start frontend dev server for UI tests."""
     env = os.environ.copy()
     env["VITE_API_BASE"] = "http://127.0.0.1:8000/api/v1"
-    env["VITE_LOCAL_TOKEN"] = "test-token"
+    env["VITE_LOCAL_TOKEN"] = "" if request.config.getoption("--selenium-no-env-token") else "test-token"
     # Start Node directly so fixture teardown terminates Vite rather than a shell shim.
     cmd = ["node", str(FRONTEND_DIR / "node_modules/vite/bin/vite.js"), "--host", "127.0.0.1", "--port", "5173", "--strictPort"]
     proc = subprocess.Popen(
@@ -256,3 +258,4 @@ def pytest_addoption(parser):
     parser.addoption("--selenium", action="store_true", default=False, help="Run Selenium UI tests")
     parser.addoption("--selenium-browser", action="store", default="chrome", help="Browser for Selenium tests")
     parser.addoption("--selenium-headless", action="store", default="true", help="Run headless")
+    parser.addoption("--selenium-no-env-token", action="store_true", default=False, help="Test Settings/storage recovery without a Vite token")

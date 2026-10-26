@@ -11,7 +11,7 @@ class TestFirewallCheck:
         driver.get("http://127.0.0.1:5173/#/modules/firewall-check")
         driver.execute_script("window.WebSocket = class extends WebSocket { constructor(...args) { super(...args); if (this.url.includes('/ws/scan/')) window.__scanSocket = this; } };")
         wait = WebDriverWait(driver, 15)
-        wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Kiểm tra firewall')]"))).click()
+        wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button']"))).click()
         wait.until(lambda d: d.execute_script("return window.__scanSocket?.readyState === 1"))
         driver.execute_script("window.__scanSocket.close();")
         wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='error-banner']")))
@@ -51,10 +51,10 @@ class TestFirewallCheck:
         assert len(cards) == 3
         assert {c.get_attribute("data-profile") for c in cards} == {"Domain", "Private", "Public"}
         assert "chưa kiểm chứng" in driver.find_element(By.CSS_SELECTOR, "[data-testid='firewall-limits']").text.lower()
-        searches = driver.find_elements(By.CSS_SELECTOR, "input[type='search']")
+        searches = driver.find_elements(By.CSS_SELECTOR, ".datatable-search")
         assert len(searches) == 1
         searches[0].send_keys("no-such-rule-xyz")
-        assert "Không có rule" in driver.find_element(By.CSS_SELECTOR, "[data-testid='firewall-results']").text
+        assert "Không có kết quả phù hợp" in driver.find_element(By.CSS_SELECTOR, "[data-testid='firewall-results']").text
         searches[0].clear()
         driver.get("http://127.0.0.1:5173/#/scan-history")
         select = wait.until(EC.presence_of_element_located((By.ID, "history-module")))

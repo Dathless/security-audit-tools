@@ -63,7 +63,7 @@ export function RadarMap({ dots, scanning = false }: RadarMapProps): ReactElemen
   };
 
   return (
-    <div className="radar" data-testid="radar-map">
+    <div className={`radar${scanning ? " radar-scanning" : ""}`} data-testid="radar-map">
       <svg
         className="radar-svg"
         viewBox="0 0 340 340"

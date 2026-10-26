@@ -7,12 +7,13 @@ interface PanelProps {
   actions?: ReactNode;
   children: ReactNode;
   className?: string;
+  id?: string;
 }
 
 /** Khối nội dung bo góc lớn: title + subtitle + slot nội dung. */
-export function Panel({ title, subtitle, actions, children, className = "" }: PanelProps): ReactElement {
+export function Panel({ title, subtitle, actions, children, className = "", id }: PanelProps): ReactElement {
   return (
-    <section className={`panel ${className}`} data-testid="panel">
+    <section className={`panel ${className}`} data-testid="panel" id={id}>
       <header className="panel-head">
         <div className="panel-title-group">
           <h3 className="panel-title" data-testid="panel-title">

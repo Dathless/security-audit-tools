@@ -2,17 +2,17 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 9px;
-  border-radius: 999px;
-  font-size: 11.5px;
+  padding: 3px 7px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
   font-weight: 500;
-  line-height: 1.6;
+  line-height: 1.5;
   white-space: nowrap;
 }
 
 .badge-dot {
-  width: 7px;
-  height: 7px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: currentColor;
   flex-shrink: 0;
@@ -22,14 +22,17 @@
   color: var(--status-danger);
   background: var(--status-danger-soft);
 }
+
 .badge-warning {
   color: var(--status-warning);
   background: var(--status-warning-soft);
 }
+
 .badge-safe {
   color: var(--status-safe);
   background: var(--status-safe-soft);
 }
+
 .badge-info {
   color: var(--text-secondary);
   background: var(--status-info-soft);

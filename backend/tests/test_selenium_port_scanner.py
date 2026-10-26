@@ -140,7 +140,7 @@ class TestPortScannerScanFlow:
 
         headers = table.find_elements(By.CSS_SELECTOR, "th")
         header_texts = [h.text for h in headers]
-        expected_columns = ["Mức rủi ro", "Cổng", "Tiến trình", "Giao thức", "Listener", "Review", "Thay đổi", "Lý do"]
+        expected_columns = ["Mức rủi ro", "Endpoint", "Tiến trình", "Review / thay đổi", "Hành động"]
         for expected in expected_columns:
             assert any(expected.lower() in h.lower() for h in header_texts), f"Missing column: {expected}"
 
@@ -211,7 +211,7 @@ class TestPortScannerWhitelistActions:
             EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='data-table'] tbody tr, .data-table tbody tr, table tbody tr"))
         )
 
-        action_buttons = driver.find_elements(By.CSS_SELECTOR, "[data-testid='mark-safe-btn'], .mark-safe-btn, .row-actions button")
+        action_buttons = driver.find_elements(By.CSS_SELECTOR, "[data-testid='review-endpoint-btn']")
         if action_buttons:
             btn = action_buttons[0]
             assert "Xác nhận đã xem" in btn.text
@@ -227,7 +227,7 @@ class TestPortScannerWhitelistActions:
             EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='data-table'] tbody tr, .data-table tbody tr, table tbody tr"))
         )
 
-        action_buttons = driver.find_elements(By.CSS_SELECTOR, ".row-actions button")
+        action_buttons = driver.find_elements(By.CSS_SELECTOR, "[data-testid='review-endpoint-btn']")
         if action_buttons:
             initial_text = action_buttons[0].text
             action_buttons[0].click()
