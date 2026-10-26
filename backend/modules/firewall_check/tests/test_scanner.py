@@ -36,6 +36,39 @@ async def test_scanner_contract(snapshot, monkeypatch):
     assert progress[-1][0] == progress[-1][1]
 
 
+@pytest.mark.parametrize("empty_rules", [False, True])
+async def test_progress_reports_only_work_already_evaluated(snapshot, monkeypatch, empty_rules):
+    from modules.firewall_check.scanner import FirewallCheckModule
+    if empty_rules:
+        snapshot["rules"] = []
+    install_snapshot(monkeypatch, snapshot)
+    evaluated = []
+    original = FirewallCheckModule._item
+    def item(title, *args):
+        evaluated.append(title)
+        return original(title, *args)
+    monkeypatch.setattr(FirewallCheckModule, "_item", staticmethod(item))
+    events = []
+    async def report(current, total, message):
+        events.append((current, total, len(evaluated)))
+    await FirewallCheckModule().run(report)
+    count = 3 if empty_rules else 4
+    assert events == [(0, 0, 0)] + [(index, count, index) for index in range(1, count + 1)]
+
+
+async def test_collection_failure_never_reports_assessment_progress(monkeypatch):
+    from modules.firewall_check.scanner import FirewallCheckModule
+    def fail():
+        raise ScanError("FIREWALL_TIMEOUT", "timed out")
+    monkeypatch.setattr(FirewallCheckModule, "_collect", staticmethod(fail))
+    events = []
+    async def report(current, total, message):
+        events.append((current, total))
+    with pytest.raises(ScanError):
+        await FirewallCheckModule().run(report)
+    assert events == [(0, 0)]
+
+
 @pytest.mark.parametrize("active,enabled,inbound,outbound,expected,reason", [
     (True, False, "Block", "Allow", "danger", "FIREWALL_DISABLED"),
     (False, False, "Block", "Allow", "warning", "FIREWALL_DISABLED"),

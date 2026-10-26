@@ -65,9 +65,10 @@ class FirewallCheckModule(ScannerBase):
     async def run(self, progress_cb: ProgressCallback | None = None) -> ScanResult:
         started_at = datetime.utcnow()
         if progress_cb:
-            await progress_cb(0, 1, "Đang đọc cấu hình Windows Firewall…")
+            await progress_cb(0, 0, "Đang đọc cấu hình Windows Firewall…")
         snapshot = await asyncio.to_thread(self._collect)
         items = []
+        total = len(snapshot.profiles) + len(snapshot.rules)
         for profile in snapshot.profiles:
             detail = profile.model_dump()
             detail.update(kind="profile", active=profile.name in snapshot.active_profiles)
@@ -82,6 +83,8 @@ class FirewallCheckModule(ScannerBase):
             if reasons:
                 severity = "danger" if detail["active"] and any(r != "POLICY_UNDETERMINED" for r in reasons) else "warning"
             items.append(self._item(profile.name, detail, severity, reasons))
+            if progress_cb:
+                await progress_cb(len(items), total, f"Đã đánh giá profile {profile.name}.")
 
         for rule in snapshot.rules:
             detail = rule.model_dump()
@@ -94,12 +97,12 @@ class FirewallCheckModule(ScannerBase):
                 and bool({"Any", "*", "0.0.0.0/0", "::/0", "0.0.0.0-255.255.255.255"} & set(rule.remote_addresses))
             )
             items.append(self._item(rule.display_name or rule.name, detail, "warning" if broad else "safe", ["BROAD_INBOUND_ALLOW"] if broad else []))
+            if progress_cb:
+                await progress_cb(len(items), total, f"Đã đánh giá rule {rule.display_name or rule.name}.")
 
         summary = {"total_profiles": len(snapshot.profiles), "total_rules": len(snapshot.rules), "danger": 0, "warning": 0, "safe": 0}
-        for index, item in enumerate(items, 1):
+        for item in items:
             summary[item.severity] += 1
-            if progress_cb:
-                await progress_cb(index, len(items), f"Đang đánh giá {item.title}…")
         return ScanResult(
             module_id=self.module_id,
             started_at=started_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),

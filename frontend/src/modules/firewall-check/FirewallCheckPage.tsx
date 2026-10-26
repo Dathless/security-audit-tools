@@ -48,9 +48,9 @@ const columns: DataColumn<RuleRow>[] = [
 ];
 
 export function FirewallCheckPage(): ReactElement {
-  const { data, loading, scanning, progress, error, startScan } = useFirewallCheck();
+  const { data, loading, scanning, progress, error, startScan, log, elapsed, sampleSeconds, connectionNotice } = useFirewallCheck();
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const complete = data?.status === "done";
+  const complete = data?.status === "done" && !scanning && !error;
   const profiles = complete ? data.items.filter((item) => item.detail.kind === "profile") : [];
   const rules: RuleRow[] = complete ? data.items.filter((item) => item.detail.kind === "rule").map((item) => ({
     ...item,
@@ -75,7 +75,21 @@ export function FirewallCheckPage(): ReactElement {
     ]}
   >
     <p className="firewall-limits" data-testid="firewall-limits">Chỉ đọc cấu hình tại máy. Kết quả chưa kiểm chứng khả năng truy cập từ Internet hoặc tính hiệu lực tổng hợp của mọi rule.</p>
-    {scanning ? <ProgressBar {...progress} /> : null}
+    {scanning ? <div className="firewall-progress">
+      <ProgressBar {...progress} />
+      <p className="firewall-timing" data-testid="firewall-timing">Đã chạy: {elapsed} giây · {sampleSeconds === null
+        ? "Chưa đủ dữ liệu để ước tính thời gian còn lại."
+        : elapsed >= sampleSeconds
+          ? "Đang lâu hơn lượt quét thành công trước; chưa thể ước tính thời gian còn lại."
+          : `Còn khoảng ${Math.max(1, Math.ceil(sampleSeconds - elapsed))} giây (ước tính từ lượt quét thành công trước, không phải cam kết).`}</p>
+      {progress.total > 0 && progress.current >= progress.total ? <p>Đã đánh giá xong. Đang chờ lưu kết quả…</p> : null}
+      {connectionNotice ? <p role="status">{connectionNotice}</p> : null}
+    </div> : null}
+    {log.length > 0 ? <details className="firewall-log" data-testid="firewall-log">
+      <summary>Nhật ký tiến trình · {scanning ? "Đang chạy" : error ? "Thất bại" : "Hoàn tất"}</summary>
+      <p>100 mốc gần nhất quan sát trong phiên này; nhật ký không được lưu khi tải lại trang.</p>
+      <ol>{log.map((entry, index) => <li key={index}><time>+{entry.seconds}s</time> {entry.message}</li>)}</ol>
+    </details> : null}
     {loading ? <p role="status">Đang tải kết quả…</p> : null}
     {!loading && !scanning && !complete && !error ? <EmptyState title="Chưa có kết quả Firewall Check" description="Bấm Quét ngay trên thanh công cụ để đọc cấu hình hiện tại." /> : null}
     {complete && !scanning ? <div className="firewall-results" data-testid="firewall-results">

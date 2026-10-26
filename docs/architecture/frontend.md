@@ -65,6 +65,8 @@ Bằng chứng Port trong scan đang chạy được gắn nhãn tạm. Khi scan
 
 - **Port Scanner:** một dòng mỗi endpoint; mức rủi ro, cổng/giao thức/bind, owner chính/số lượng, review và thay đổi. Drawer giữ mọi owner, executable/user, thời điểm tạo, trạng thái từng trường, lý do/guidance và trước/sau. Tìm kiếm vẫn thấy full path/user/bind. Panel `port-inventory` và `port-summary` có mặt trong mọi theme. Metadata thiếu không suy luận an toàn; legacy giữ đánh giá cũ; partial ghi rõ không kết luận endpoint biến mất.
 - **Firewall Check:** ba profiles, KPI và rules; drawer giữ tên rule, profile, chiều/action, local/remote ports/addresses, program/service/policy source, reasons/guidance. Chỉ đọc cấu hình, không tuyên bố reachability hoặc hiệu lực tổng hợp.
+
+  Khi quét, ProgressBar dùng indeterminate cho giai đoạn đọc chưa biết tổng và counts thực cho đánh giá. UI hiện thời gian đã chạy, ETA tham chiếu lượt thành công trước và nhật ký mở/thu gọn tối đa 100 mốc quan sát trong phiên. Không có mẫu hoặc vượt mẫu được báo rõ. Hook chặn responses/callbacks cũ, tải kết quả theo đúng scan ID; mất socket chuyển sang đối chiếu HTTP mỗi 2 giây và giữ guard cho đến khi biết trạng thái cuối. Nhật ký có thể thiếu mốc trong thời gian mất socket hoặc trước khi tải lại trang.
 - **Scan History:** filter Port Scanner/Firewall, thời gian/trạng thái/counts và mở module; theme giữ filter đang chọn. Hiện API lấy trang đầu 50 records, chưa có điều khiển phân trang lịch sử.
 - **Settings:** Appearance, token local, module backend, review phân trang/hủy và whitelist legacy xem/xóa. Theme không thay đổi token/review hoặc quét.
 - **Startup Programs / Outbound Connections:** vẫn coming-soon. [Kế hoạch Startup Programs](../plans/startup-programs.md) chưa phải chức năng đang chạy.

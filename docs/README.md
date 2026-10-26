@@ -12,6 +12,7 @@ Quy tắc commit/PR và cập nhật tài liệu nằm trong [CONTRIBUTING.md](.
 | Port Scanner 0.2.0 | [Kế hoạch/checklist](plans/port-scanner-upgrade.md), [rules và review](architecture/port-scanner-risk.md), [kiểm chứng](testing/reports/port-scanner-upgrade.md) |
 | Triển khai module tiếp theo | [Startup Programs — thiết kế và checklist](plans/startup-programs.md) |
 | Xem phần Firewall Check và bỏ Nmap đã hoàn thành | [Kế hoạch](plans/completed/firewall-check-nmap-removal.md), [checklist](plans/completed/firewall-check-nmap-removal-checklist.md), [bằng chứng kiểm thử](testing/reports/firewall-check-nmap-removal.md) |
+| Firewall Check: tiến trình và sửa lỗi vòng đời quét | [Kế hoạch và phân vai](plans/firewall-progress-review.md), [kiểm chứng và ảnh UI](testing/reports/firewall-progress-review.md) |
 | Hiểu UI và design tokens | [Kiến trúc frontend](architecture/frontend.md); [đường dẫn cũ](../frontend/DESIGN.md) giữ liên kết tương thích |
 | UI Console và ba theme | Đã hoàn tất triển khai: [thiết kế](plans/ui-console-redesign-design.md), [checklist](plans/ui-console-redesign.md), [kiểm chứng và bàn giao](testing/reports/ui-console-redesign.md); [prototype](plans/previews/ui-console-themes.html) dùng dữ liệu giả |
 

@@ -49,3 +49,18 @@
   color: var(--text-secondary);
   font-family: var(--font-mono);
 }
+
+.progress-indeterminate .progress-fill {
+  width: 35%;
+  animation: progress-pulse 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes progress-pulse {
+  from { transform: translateX(0); }
+  to { transform: translateX(185%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-fill { transition: none; }
+  .progress-indeterminate .progress-fill { animation: none; transform: none !important; }
+}

@@ -203,6 +203,8 @@ Server đẩy các message dạng:
 
 Frontend subscribe ngay sau khi gọi `POST .../scan` nhận được `scan_id`. Thiết kế này cho phép **mọi module dùng chung 1 kênh WebSocket theo `scan_id`**, không cần mở endpoint WS riêng cho từng module.
 
+Progress có `total <= 0` nghĩa là chưa biết tổng công việc; UI hiển thị indeterminate, không suy ra phần trăm. Firewall dùng trạng thái này trong lúc PowerShell đọc cấu hình, sau đó phát counts khi từng profile/rule được đánh giá. Counts đánh giá đạt tổng chưa xác nhận lưu thành công; chỉ `done` sau persistence mới xác nhận kết thúc.
+
 Kênh `/ws/events` phát các sự kiện scan toàn cục. Cả hai kênh xác thực trước khi accept: browser gửi subprotocols `sec-audit` và `token.<encodeURIComponent(localToken)>`; client ngoài browser có thể gửi `X-Local-Token`. Origin của browser phải thuộc `allowed_origins`; token không đặt trong URL. Subscribe muộn được replay trạng thái done/error đã lưu, không replay đầy đủ từng item.
 
 ---
@@ -252,7 +254,7 @@ APScheduler gọi `dispatch_scan(manifest)` rồi executor chạy `module.run()`
 
 Snapshot/diff/review commit trước khi phát item events, tránh giữ khóa SQLite qua await WebSocket. `meta.summary_serializer` là callback tùy chọn của module cho `/api/v1/modules`; Port dùng để tính review counts hiện hành, module khác giữ JSON summary đã lưu. Sidebar chỉ dùng response khởi tạo khi module chưa có badge mới hơn.
 
-Port khai báo `meta.serialize_scans=True`: REST trùng trả 409, scheduler bỏ lượt trùng. Constructor scanner nằm trong xử lý lỗi; backend startup đánh dấu scan running bỏ dở là error trước khi chạy scheduler. Cơ chế này dành cho một backend process/SQLite, không phải khóa phân tán.
+Port và Firewall khai báo `meta.serialize_scans=True`: REST trùng trả 409 `SCAN_ALREADY_RUNNING`, scheduler bỏ lượt trùng. Constructor scanner nằm trong xử lý lỗi; backend startup đánh dấu scan running bỏ dở là error trước khi chạy scheduler. Cơ chế này dành cho một backend process/SQLite, không phải khóa phân tán.
 ---
 
 ## 6. Database schema

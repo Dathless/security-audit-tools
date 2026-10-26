@@ -58,3 +58,25 @@
 .firewall-profiles .panel {
   height: 100%;
 }
+
+.firewall-progress,
+.firewall-log {
+  padding: 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.firewall-timing,
+.firewall-log time {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.firewall-log summary { cursor: pointer; padding: 4px 0; }
+.firewall-log summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.firewall-log ol { max-height: 240px; overflow-y: auto; padding-left: 24px; }
+.firewall-log li { margin-top: 8px; }
+.firewall-log time { font-family: var(--font-mono); }

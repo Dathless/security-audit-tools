@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 
 import pytest
 from sqlalchemy import select
@@ -79,3 +80,29 @@ def test_openapi_documents_module(client):
     paths = client.get("/openapi.json").json()["paths"]
     for suffix in ("/scan", "/scans", "/scans/latest", "/scans/{scan_id}"):
         assert BASE + suffix in paths
+    assert "409" in paths[BASE + "/scan"]["post"]["responses"]
+
+
+def test_duplicate_start_returns_conflict_without_creating_scan(client, mock_firewall):
+    with db.session() as session:
+        session.add(Scan(id="existing-firewall", module_id="firewall-check", status="running", started_at=datetime.utcnow()))
+        session.commit()
+    response = client.post(f"{BASE}/scan")
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "SCAN_ALREADY_RUNNING"
+    assert client.get(f"{BASE}/scans").json()["data"]["total"] == 1
+
+
+async def test_scheduler_skips_running_firewall_and_retry_after_restart(clean_db, mock_firewall, monkeypatch):
+    from core.executor import dispatch_scan, recover_abandoned_scans
+    from core.scheduler import _scheduled_scan_job
+    monkeypatch.setattr("core.executor.asyncio.create_task", lambda coroutine: coroutine.close())
+    manifest = discover_modules()["firewall-check"]
+    first = await dispatch_scan(manifest)
+    await _scheduled_scan_job(manifest)
+    with db.session() as session:
+        assert len(session.scalars(select(Scan).where(Scan.module_id == "firewall-check")).all()) == 1
+    recover_abandoned_scans({manifest.id: manifest})
+    with db.session() as session:
+        assert session.get(Scan, first).status == "error"
+    assert await dispatch_scan(manifest) != first

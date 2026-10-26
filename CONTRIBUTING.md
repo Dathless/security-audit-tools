@@ -45,6 +45,23 @@ Ví dụ: `docs: organize project guides and startup plan`, `fix(api): preserve 
 - Review diff hoàn chỉnh, bao gồm callers, fixture và tài liệu liên quan. Sửa các vấn đề có bằng chứng và kiểm tra lại trước khi merge.
 - Không đánh dấu checklist đạt bằng suy đoán. Quy định ở đây được kiểm tra khi review; enforcement tự động chỉ có hiệu lực khi được cấu hình riêng.
 
+## Quy trình planner → executor → reviewer
+
+Khi người dùng yêu cầu làm việc với subagent, điều phối các vai trò trong cùng một task/chat. Mặc định chạy tuần tự trên một nhánh: chỉ executor sửa product code và tests; điều phối viên tích hợp và cập nhật tài liệu. Không tạo chat riêng hoặc cho nhiều agent ghi cùng tệp.
+
+| Vai trò | Model / effort mặc định | Trách nhiệm và bàn giao |
+|---|---|---|
+| Planner | GPT-6.1 Sol / high | Đọc hướng dẫn repo, truy callers và nguyên nhân lỗi; lập phạm vi, contract, rủi ro và tiêu chí kiểm chứng trước khi sửa. |
+| Executor | GPT-6.1 Sol / high | Thực hiện kế hoạch nhỏ nhất đủ yêu cầu, thêm regression tests và bàn giao diff cùng kết quả lệnh thực chạy. |
+| Reviewer | GPT-6 Astra / high | Review độc lập, chỉ đọc; kiểm tra yêu cầu, diff, callers, tests, bảo mật và các tình huống lỗi/race. Trả finding có vị trí, mức độ, cách tái hiện và điều kiện chấp nhận. |
+
+- Chọn lại model/effort theo độ phức tạp và model khả dụng; ghi lựa chọn thực tế trong bàn giao. Không âm thầm coi model thay thế là model đã yêu cầu.
+- Nạp skill đúng vai trò: lập kế hoạch/debug nguyên nhân cho planner; debugging, kiểm thử và skill frontend/backend phù hợp cho executor; review, bảo mật khi liên quan và verification cho reviewer. Điều phối viên nạp Postman API Engineer khi đổi API, chốt contract trước implementation và chọn kiểm chứng phù hợp; tránh setup/publish bên ngoài khi không cần.
+- Theo dõi mỗi hạng mục với owner, phạm vi tệp, trạng thái, tiêu chí chấp nhận và bằng chứng trong kế hoạch/báo cáo của task. Không cần thêm hệ thống Kanban cho thay đổi đơn lẻ.
+- Tối đa **3 vòng review–fix**: reviewer review → executor sửa finding có bằng chứng → chạy lại kiểm chứng bị ảnh hưởng. Dừng sớm khi reviewer không còn finding cần sửa và các gate đạt. Lần kiểm tra lại sau sửa thuộc vòng đó; không mở vòng sửa thứ tư.
+- Nếu hết 3 vòng vẫn còn lỗi, ghi rõ phần tồn đọng, ảnh hưởng và bước tiếp theo; không báo hoàn tất hoặc merge khi gate chưa đạt. Không tính việc nạp skill/đọc mã là một vòng review.
+- Gate bàn giao: kiểm chứng theo bảng ở trên, review toàn diff và `git diff --check`; báo phần chưa kiểm chứng. Commit/push/merge vẫn tuân theo quyền hạn và quy tắc của repo.
+
 ## Tài liệu và changelog
 
 - Giữ [docs/README.md](docs/README.md) làm điểm điều hướng. Kế hoạch ở `docs/plans/`, bằng chứng kiểm thử ở `docs/testing/reports/`; giữ số liệu lịch sử trong archive.
