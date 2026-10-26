@@ -8,6 +8,7 @@ from api.scan_results import scan_summary, scan_to_dict
 from api.security import ApiError, require_local_token
 from core.executor import dispatch_scan
 from core.module_registry import discover_modules
+from core.scanner_base import ScanError
 from storage.db import Scan, db
 
 MODULE_ID = "firewall-check"
@@ -27,7 +28,7 @@ def _require_module():
     return registry[MODULE_ID]
 
 
-@router.post("/scan")
+@router.post("/scan", responses={409: {"description": "A Firewall scan is already running"}})
 async def start_scan() -> dict:
     """Read Windows Firewall in the background; return scan_id immediately.
 
@@ -36,7 +37,10 @@ async def start_scan() -> dict:
     commands, a 60-second timeout or invalid data fail the scan, not an empty pass.
     """
     manifest = _require_module()
-    scan_id = await dispatch_scan(manifest)
+    try:
+        scan_id = await dispatch_scan(manifest)
+    except ScanError as exc:
+        raise ApiError(exc.code, exc.message, status_code=409) from exc
     return ok({"scan_id": scan_id})
 
 

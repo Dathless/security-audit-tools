@@ -9,4 +9,5 @@ manifest = ModuleManifest(
     version="0.1.0",
     scanner_cls=FirewallCheckModule,
     router=router,
+    meta={"serialize_scans": True},
 )

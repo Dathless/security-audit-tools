@@ -6,6 +6,8 @@ Ghi lại thay đổi đáng chú ý cho người dùng và contributor. Mục U
 
 ### Added
 
+- Firewall Check: thanh tiến trình phân biệt lúc đọc cấu hình chưa biết tổng và lúc đánh giá profiles/rules; thời gian đã chạy, ETA tham chiếu lượt thành công trước đó và nhật ký có thể mở/thu gọn. Nhật ký chỉ chứa hoạt động quan sát trong phiên; thiếu mẫu ETA hoặc vượt mẫu được báo rõ.
+
 - UI Console với ba theme Technical Console (mặc định), Graphite Studio và Light Precision; lưu lựa chọn local, bảo toàn filter/bằng chứng/scan khi đổi. Điều hướng manifest có tìm kiếm, menu mobile và ngăn bằng chứng dùng chung cho endpoint/rule.
 
 - Port Scanner 0.2.0: endpoint identity v2, nhiều owner và metadata có trạng thái, mọi risk reasons/guidance, review có fingerprint/expiry và bằng chứng trước/sau. API `/reviews` hỗ trợ tạo idempotent, phân trang và hủy; bảng riêng được tạo bổ sung, không sửa snapshot lịch sử.
@@ -14,6 +16,8 @@ Ghi lại thay đổi đáng chú ý cho người dùng và contributor. Mục U
 - [Thiết kế Startup Programs](docs/plans/startup-programs.md): kiểm kê Run/RunOnce và Startup folders, dự kiến lưu nhật ký trước/sau và SHA-256 của tệp. Module chưa được triển khai.
 
 ### Changed
+
+- Hướng dẫn contributor bổ sung quy trình planner → executor → reviewer trong cùng task, phân công model/effort và skill, yêu cầu bằng chứng và giới hạn tối đa 3 vòng review–fix.
 
 - Dựng lại shell, metric strip, bảng và panel bằng semantic tokens chung; ba theme chỉ đổi palette/layout/motion. Giữ toàn bộ owner, trạng thái metadata, reasons/guidance và trước/sau trong bằng chứng; risk/review và API không đổi. Motion tôn trọng reduced motion, radar không chạy lúc idle, bỏ tải Google Fonts.
 
@@ -25,6 +29,8 @@ Ghi lại thay đổi đáng chú ý cho người dùng và contributor. Mục U
 - Chọn một [tài liệu frontend chính](docs/architecture/frontend.md); giữ frontend/DESIGN.md làm liên kết chuyển tiếp và sửa đường dẫn tham chiếu trong comment/docstring.
 
 ### Fixed
+
+- Firewall Check chặn quét trùng (REST trả `409 SCAN_ALREADY_RUNNING`, scheduler bỏ lượt), phục hồi trạng thái bị gián đoạn khi backend restart và đối chiếu đúng scan ID khi mất kết nối/hoàn tất. Bỏ phản hồi/callback cũ để tránh ghi đè lượt đang theo dõi; progress được phát khi từng mục thực sự được đánh giá.
 
 - UI vẫn mở được khi trình duyệt chặn localStorage và không có token từ env; Settings báo rõ khi token chưa lưu được, giữ nguyên kiểm tra xác thực. Bằng chứng tạm đóng khi scan lỗi/mất kết nối để không bị thay âm thầm bằng snapshot cũ; giữ lựa chọn sắp xếp giao thức và hành động trong bảng gọn.
 

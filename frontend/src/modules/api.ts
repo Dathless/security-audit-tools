@@ -125,6 +125,10 @@ export async function fetchLatestFirewallScan(): Promise<ScanDetail | null> {
   return request("/modules/firewall-check/scans/latest");
 }
 
+export async function fetchFirewallScan(scanId: string): Promise<ScanDetail> {
+  return request(`/modules/firewall-check/scans/${scanId}`);
+}
+
 export async function fetchFirewallScans(page = 1, pageSize = 20): ReturnType<typeof fetchPortScans> {
   return request(`/modules/firewall-check/scans?page=${page}&page_size=${pageSize}`);
 }

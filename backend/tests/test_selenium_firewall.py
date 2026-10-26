@@ -7,15 +7,19 @@ from selenium.webdriver.support.ui import Select, WebDriverWait
 
 @pytest.mark.selenium
 class TestFirewallCheck:
-    def test_socket_disconnect_unblocks_retry(self, driver):
+    def test_socket_disconnect_recovers_the_same_scan(self, driver):
         driver.get("http://127.0.0.1:5173/#/modules/firewall-check")
         driver.execute_script("window.WebSocket = class extends WebSocket { constructor(...args) { super(...args); if (this.url.includes('/ws/scan/')) window.__scanSocket = this; } };")
-        wait = WebDriverWait(driver, 15)
+        wait = WebDriverWait(driver, 75)
         wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button']"))).click()
         wait.until(lambda d: d.execute_script("return window.__scanSocket?.readyState === 1"))
         driver.execute_script("window.__scanSocket.close();")
-        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='error-banner']")))
-        wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='scan-button']")))
+        wait.until(EC.any_of(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='firewall-results']")),
+            EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='error-banner']")),
+        ))
+        log = driver.find_element(By.CSS_SELECTOR, "[data-testid='firewall-log']")
+        assert any(state in log.text for state in ("Hoàn tất", "Thất bại"))
 
     def test_leaving_running_scan_does_not_leave_global_busy(self, driver):
         driver.get("http://127.0.0.1:5173/#/modules/firewall-check")
