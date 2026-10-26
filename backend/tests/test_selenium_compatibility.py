@@ -31,7 +31,10 @@ def test_historical_port_snapshot_keeps_listener_and_note(driver, selenium_datab
     wait.until(lambda d: "8080" in d.find_element(By.TAG_NAME, "table").text)
     table = driver.find_element(By.TAG_NAME, "table").text
     assert "127.0.0.2" in table
-    assert "Legacy scan note" in table
+    driver.find_element(By.CSS_SELECTOR, "[data-testid='endpoint-evidence-btn']").click()
+    drawer = driver.find_element(By.CSS_SELECTOR, "dialog[open].evidence-drawer")
+    assert "Legacy scan note" in drawer.text
+    assert "127.0.0.2:8080" in drawer.text
 
 
 @pytest.mark.selenium
@@ -45,5 +48,8 @@ def test_outbound_rule_labels_remote_address_neutrally(driver, selenium_database
     }
     save_snapshot(selenium_database, "firewall-check", detail, {"total_profiles": 0, "total_rules": 1, "danger": 0, "warning": 0, "safe": 1})
     driver.get("http://127.0.0.1:5173/#/modules/firewall-check")
-    WebDriverWait(driver, 10).until(lambda d: "203.0.113.10" in d.find_element(By.TAG_NAME, "table").text)
-    assert "Từ xa: 203.0.113.10" in driver.find_element(By.TAG_NAME, "table").text
+    WebDriverWait(driver, 10).until(lambda d: d.find_element(By.CSS_SELECTOR, "[data-testid='firewall-evidence-btn']").is_enabled())
+    driver.find_element(By.CSS_SELECTOR, "[data-testid='firewall-evidence-btn']").click()
+    drawer = driver.find_element(By.CSS_SELECTOR, "dialog[open].evidence-drawer")
+    assert drawer.find_element(By.XPATH, ".//dt[.='Địa chỉ từ xa']/following-sibling::dd").text == "203.0.113.10"
+    assert "Outbound" in drawer.text

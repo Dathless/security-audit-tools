@@ -3,6 +3,7 @@
 export type Severity = "safe" | "warning" | "danger";
 
 export interface ScanSummary {
+  assessment_version?: number;
   total_open?: number;
   total_endpoints?: number;
   unique_ports?: number;

@@ -1,0 +1,38 @@
+.theme-control {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.theme-control-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.theme-control select {
+  min-height: 44px;
+  max-width: 100%;
+  padding: 9px 30px 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  font: inherit;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.theme-control select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.theme-control-compact select {
+  width: 176px;
+  font-size: 12px;
+}
+
+.theme-control-hint {
+  color: var(--text-secondary);
+  font-size: 12px;
+}

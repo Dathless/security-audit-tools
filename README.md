@@ -72,11 +72,12 @@ Kiến trúc **module hoá hai chiều** (backend + frontend) tự phát hiện 
 
 ### Ứng dụng tổng thể
 
-- **Dashboard tối (dark theme)** với radar quét cổng trực quan — một chấm tương ứng một cổng, màu theo mức rủi ro.
+- **Ba theme chuyển trực tiếp:** Technical Console mặc định, Graphite Studio và Light Precision; giữ cùng panel, dữ liệu và chức năng, lưu lựa chọn trên máy. Đổi theme giữ bộ lọc, bằng chứng và lượt quét đang chạy.
+- **Console gọn, thích ứng:** điều hướng module có tìm kiếm, menu mobile, metric strip và bảng endpoint/rules với ngăn bằng chứng đầy đủ. Motion theo trạng thái, tôn trọng reduced motion; không cần tải font ngoài.
 - **KPI Port Scanner**: endpoint / ưu tiên cao / cảnh báo / không có phát hiện; trạng thái review hiển thị riêng.
-- **Sidebar sinh tự động từ registry** module, kèm badge đỏ đếm số mục cần xem và trạng thái backend (Idle / Đang quét / Offline).
+- **Sidebar sinh tự động từ registry** module, kèm badge đếm số mục cần xem và trạng thái backend (Sẵn sàng / Đang quét / Offline).
 - **Scan History** — lịch sử tổng hợp các lượt quét.
-- **Settings** — cấu hình token nội bộ, xem danh sách module backend.
+- **Settings** — chọn theme, cấu hình token nội bộ, xem module backend và quản lý xác nhận endpoint.
 - **Hạ tầng quét theo lịch** (APScheduler) dùng `manifest.default_schedule` — kết quả broadcast qua WebSocket toàn cục. Hai module hiện tại mặc định chưa có lịch; trường YAML `schedule` chưa được scheduler sử dụng.
 
 ---

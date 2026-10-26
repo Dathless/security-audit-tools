@@ -13,6 +13,7 @@ Quy tắc commit/PR và cập nhật tài liệu nằm trong [CONTRIBUTING.md](.
 | Triển khai module tiếp theo | [Startup Programs — thiết kế và checklist](plans/startup-programs.md) |
 | Xem phần Firewall Check và bỏ Nmap đã hoàn thành | [Kế hoạch](plans/completed/firewall-check-nmap-removal.md), [checklist](plans/completed/firewall-check-nmap-removal-checklist.md), [bằng chứng kiểm thử](testing/reports/firewall-check-nmap-removal.md) |
 | Hiểu UI và design tokens | [Kiến trúc frontend](architecture/frontend.md); [đường dẫn cũ](../frontend/DESIGN.md) giữ liên kết tương thích |
+| UI Console và ba theme | Đã hoàn tất triển khai: [thiết kế](plans/ui-console-redesign-design.md), [checklist](plans/ui-console-redesign.md), [kiểm chứng và bàn giao](testing/reports/ui-console-redesign.md); [prototype](plans/previews/ui-console-themes.html) dùng dữ liệu giả |
 
 ## Tài liệu tham khảo và lịch sử
 
@@ -48,7 +49,7 @@ docs/
 
 - Dùng tên tệp `kebab-case.md`, mô tả rõ nội dung; kế hoạch mới đặt trong `plans/` và có checklist kiểm chứng.
 - Giữ một bản kế hoạch cho mỗi tính năng. Khi thiết kế được điều chỉnh, cập nhật bản đó thay vì tạo tài liệu cạnh tranh.
-- Kế hoạch đã thực hiện chuyển vào `plans/completed/`; riêng Port Scanner upgrade giữ đường dẫn người dùng yêu cầu và trạng thái trong checklist. Báo cáo kiểm chứng đặt trong `testing/reports/`. Không đánh dấu hoàn thành chỉ vì đã có tài liệu.
+- Kế hoạch đã thực hiện chuyển vào `plans/completed/`; Port Scanner upgrade và UI Console giữ đường dẫn bàn giao/duyệt hiện có với trạng thái rõ trong checklist. Báo cáo kiểm chứng đặt trong `testing/reports/`. Không đánh dấu hoàn thành chỉ vì đã có tài liệu.
 - Giữ báo cáo/log cũ trong `archive/` với số liệu gốc. Chúng không đại diện cho kết quả kiểm thử hiện tại.
 - Khi di chuyển tệp, sửa cả liên kết Markdown và đường dẫn tham chiếu trong README, hướng dẫn contributor và tài liệu liên quan.
 - `docs/` vẫn bị Git bỏ qua cho tệp mới; các tài liệu Markdown được chọn trong mục lục được theo dõi trong Git. Khi thêm tài liệu, chọn từng tệp cần chia sẻ bằng `git add -f <path>`. Log lỗi thô vẫn chỉ có trên máy; không thêm toàn bộ thư mục hoặc log thô.

@@ -1,5 +1,5 @@
 import type { ReactElement, ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import "./DataTable.css";
 
 export interface DataColumn<T> {
@@ -20,6 +20,8 @@ interface DataTableProps<T> {
   rowKey: string;
   search?: boolean;
   searchPlaceholder?: string;
+  searchText?: (row: T) => string;
+  toolbar?: ReactNode;
   emptyText?: string;
   /** giới hạn chiều cao khối bảng + cuộn dọc (vd "420px") — mặc định auto */
   maxHeight?: string;
@@ -50,9 +52,12 @@ export function DataTable<T>({
   rowKey,
   search = true,
   searchPlaceholder = "Lọc…",
+  searchText,
+  toolbar,
   emptyText = "Không có dữ liệu.",
   maxHeight,
 }: DataTableProps<T>): ReactElement {
+  const searchId = useId();
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -63,7 +68,7 @@ export function DataTable<T>({
       const q = query.trim().toLowerCase();
       result = rows.filter((row) => {
         const rec = asRecord(row);
-        return columns.some((col) => {
+        return searchText?.(row).toLowerCase().includes(q) || columns.some((col) => {
           if (!col.key) return false;
           const raw = rec[col.key];
           if (raw == null) return false;
@@ -83,7 +88,7 @@ export function DataTable<T>({
       });
     }
     return result;
-  }, [rows, columns, query, sortKey, sortDir, search]);
+  }, [rows, columns, query, sortKey, sortDir, search, searchText]);
 
   function onSort(key: string): void {
     if (sortKey === key) {
@@ -103,11 +108,12 @@ export function DataTable<T>({
     <div className="datatable">
       {search ? (
         <div className="datatable-toolbar">
-          <label className="sr-only" htmlFor="dt-search">
+          {toolbar}
+          <label className="sr-only" htmlFor={searchId}>
             Tìm kiếm
           </label>
           <input
-            id="dt-search"
+            id={searchId}
             className="datatable-search"
             type="search"
             value={query}
@@ -117,7 +123,7 @@ export function DataTable<T>({
         </div>
       ) : null}
 
-      <div className="datatable-scroll" style={maxHeight ? { maxHeight } : undefined}>
+      <div className="datatable-scroll" role="region" aria-label="Bảng dữ liệu cuộn" tabIndex={0} style={maxHeight ? { maxHeight } : undefined}>
         <table className="datatable-table" data-testid="data-table">
           <thead>
             <tr>
@@ -154,7 +160,7 @@ export function DataTable<T>({
             {filtered.length === 0 ? (
               <tr>
                 <td className="datatable-empty" colSpan={columns.length + (renderColumn ? 1 : 0)}>
-                  {emptyText}
+                  {query.trim() ? "Không có kết quả phù hợp. Thử đổi hoặc xóa bộ lọc." : emptyText}
                 </td>
               </tr>
             ) : (

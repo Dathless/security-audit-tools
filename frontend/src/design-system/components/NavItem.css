@@ -1,81 +1,60 @@
 .nav-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
-  cursor: pointer;
-  font-weight: 500;
   font-size: 13px;
-  transition:
-    background-color 0.12s ease,
-    color 0.12s ease;
-  position: relative;
+  transition: background-color var(--duration-fast) var(--ease-ui),border-color var(--duration-fast) var(--ease-ui);
 }
 
-.nav-item:hover:not(.nav-item-disabled) {
+.nav-item:hover {
   background: var(--bg-elevated);
   color: var(--text-primary);
 }
 
 .nav-item-active {
   background: var(--accent-soft);
+  border-color: var(--accent-border);
   color: var(--accent);
-}
-
-.nav-item-active:hover {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
-.nav-item:focus-visible {
-  outline-offset: 0;
-}
-
-.nav-item-disabled {
-  color: var(--text-muted);
-  cursor: not-allowed;
-  opacity: 0.65;
 }
 
 .nav-item-icon {
-  display: inline-flex;
-  width: 18px;
-  justify-content: center;
-  font-size: 14px;
+  font-size: 17px;
+  width: 20px;
   flex-shrink: 0;
+  text-align: center;
+  filter: grayscale(1);
 }
 
 .nav-item-label {
+  overflow-wrap: anywhere;
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .nav-item-soon {
+  font-family: var(--font-mono);
   font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   color: var(--text-muted);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 1px 6px;
 }
 
 .nav-item-badge {
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 999px;
-  background: var(--status-danger);
-  color: #2a0508;
-  font-size: 10.5px;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  min-width: 22px;
+  text-align: center;
+  background: var(--status-warning-soft);
+  color: var(--status-warning);
+  border-radius: 4px;
+  padding: 2px 5px;
+}
+
+.nav-item-disabled {
+  cursor: default;
+  color: var(--text-muted);
 }

@@ -32,7 +32,8 @@ def test_same_port_protocols_are_separate_endpoint_rows(driver, selenium_databas
     wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "table tbody tr")))
     rows = driver.find_elements(By.CSS_SELECTOR, "table tbody tr")
     assert len(rows) == 2
-    assert "C:\\Demo\\demo.exe" in driver.find_element(By.TAG_NAME, "table").text
+    driver.find_element(By.CSS_SELECTOR, "[data-testid='endpoint-evidence-btn']").click()
+    assert "C:\\Demo\\demo.exe" in driver.find_element(By.CSS_SELECTOR, "dialog[open]").text
 
 
 def test_review_preserves_risk_kpi_and_can_be_revoked(driver, selenium_database):
@@ -110,9 +111,14 @@ def test_owner_metadata_failure_statuses_are_visible(driver, selenium_database):
             connection.execute("UPDATE scan_items SET detail_json=? WHERE id=?", (json.dumps(detail), item_id))
     driver.get("http://127.0.0.1:5173/#/modules/port-scanner")
     table = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, "table")))
-    assert "Thiếu quyền" in table.text
-    assert "Đã thoát" in table.text
-    assert "Chưa xác định" in table.text
+    assert len(table.find_elements(By.CSS_SELECTOR, "tbody tr")) == 2
+    evidence = driver.find_elements(By.CSS_SELECTOR, "[data-testid='endpoint-evidence-btn']")
+    for index, expected in enumerate(("Thiếu quyền", "Đã thoát")):
+        evidence[index].click()
+        drawer = driver.find_element(By.CSS_SELECTOR, "dialog[open]")
+        assert expected in drawer.text
+        assert "Chưa xác định" in drawer.text
+        drawer.find_element(By.CSS_SELECTOR, "[aria-label='Đóng bằng chứng']").click()
 
 
 def test_history_uses_endpoint_and_no_finding_labels(driver, selenium_database):

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import { activeModules, findModuleByRoute, firstActiveModule } from "../core/moduleRegistry";
 import { GENERAL_NAV, navigate, useRoute } from "../core/router";
@@ -6,6 +6,8 @@ import { useScanHandler } from "../core/scanRegistry";
 import { appStore, updateHealth, useAppState, setBadge } from "../core/appStore";
 import { fetchHealth, fetchModules, openGlobalSocket } from "../modules/api";
 import { Button } from "../design-system/components/Button";
+import { ThemeSelector } from "../design-system/components/ThemeSelector";
+import { trapDialogFocus } from "../design-system/components/dialogFocus";
 import { NavItem } from "../design-system/components/NavItem";
 import { ComingSoonPage } from "./pages/ComingSoonPage";
 import { ScanHistoryPage } from "./pages/ScanHistoryPage";
@@ -14,9 +16,10 @@ import "./AppShell.css";
 
 const HEALTH_POLL_MS = 5000;
 
-function Sidebar({ route }: { route: string }): ReactElement {
+function Sidebar({ route, onNavigate }: { route: string; onNavigate?: () => void }): ReactElement {
   const { badges, healthStatus } = useAppState();
-  const modules = activeModules();
+  const [query, setQuery] = useState("");
+  const modules = activeModules().filter((module) => `${module.name} ${module.description ?? ""}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
 
   const statusLabel = useMemo(() => {
     switch (healthStatus) {
@@ -33,12 +36,13 @@ function Sidebar({ route }: { route: string }): ReactElement {
 
   return (
     <aside className="sidebar" data-testid="sidebar">
-      <a className="brand" href="#/">
+      <a className="brand" href="#/" onClick={onNavigate}>
         <span className="brand-mark">▣</span>
-        <span className="brand-name">Security Audit</span>
+        <span className="brand-name">Security Audit<small>LOCAL WORKSPACE</small></span>
       </a>
-
-      <nav className="nav">
+      <label className="module-search-label"><span className="sr-only">Tìm module</span><input type="search" placeholder="Tìm module…" value={query} onChange={(event) => setQuery(event.target.value)} data-testid="module-search" /></label>
+      <nav className="nav" aria-label="Điều hướng chính">
+        <div className="nav-modules">
         <p className="nav-group-label">Modules</p>
         {modules.map((m) => (
           <NavItem
@@ -55,9 +59,12 @@ function Sidebar({ route }: { route: string }): ReactElement {
             dataStatus={m.status}
             dataRoute={m.route}
             dataGroup="modules"
+            onNavigate={onNavigate}
           />
         ))}
-
+        {modules.length === 0 && <p className="nav-empty" role="status">Không tìm thấy module</p>}
+        </div>
+        <div className="nav-general">
         <p className="nav-group-label nav-group-spacer">General</p>
         {GENERAL_NAV.map((g) => (
           <NavItem
@@ -69,8 +76,10 @@ function Sidebar({ route }: { route: string }): ReactElement {
             dataTestId={`nav-item-${g.route.replace(/^\//, "")}`}
             dataRoute={g.route}
             dataGroup="general"
+            onNavigate={onNavigate}
           />
         ))}
+        </div>
       </nav>
 
       <footer className="sidebar-footer">
@@ -81,7 +90,7 @@ function Sidebar({ route }: { route: string }): ReactElement {
   );
 }
 
-function Topbar({ route }: { route: string }): ReactElement {
+function Topbar({ route, onMenu }: { route: string; onMenu?: () => void }): ReactElement {
   const module = route.startsWith("/modules/") ? findModuleByRoute(route) : undefined;
   const handler = useScanHandler(module?.id);
   const { scanningNow } = useAppState();
@@ -92,6 +101,7 @@ function Topbar({ route }: { route: string }): ReactElement {
   return (
     <header className="topbar" data-testid="topbar">
       <div className="breadcrumb" data-testid="breadcrumb">
+        {onMenu && <Button variant="ghost" data-testid="menu-toggle" aria-label="Mở điều hướng" aria-haspopup="dialog" onClick={onMenu}>☰</Button>}
         <span className="crumb">Security Audit</span>
         <span className="crumb-sep" aria-hidden="true">
           /
@@ -100,7 +110,8 @@ function Topbar({ route }: { route: string }): ReactElement {
       </div>
 
       <div className="topbar-actions">
-        <Button
+        <ThemeSelector compact />
+        {module && <Button
           variant="primary"
           data-testid="scan-button"
           onClick={() => handler?.()}
@@ -109,7 +120,7 @@ function Topbar({ route }: { route: string }): ReactElement {
         >
           <span aria-hidden="true">⟳</span>
           {module && scanningNow ? "Đang quét…" : "Quét ngay"}
-        </Button>
+        </Button>}
       </div>
     </header>
   );
@@ -117,6 +128,14 @@ function Topbar({ route }: { route: string }): ReactElement {
 
 export function AppShell(): ReactElement {
   const route = useRoute();
+  const [mobile, setMobile] = useState(() => window.matchMedia("(max-width: 960px)").matches);
+  const menu = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 960px)");
+    const change = () => setMobile(media.matches);
+    media.addEventListener("change", change);
+    return () => media.removeEventListener("change", change);
+  }, []);
 
   useEffect(() => {
     if (!route || route === "/") {
@@ -191,10 +210,14 @@ export function AppShell(): ReactElement {
 
   return (
     <div className="app-shell">
-      <Sidebar route={route} />
+      <a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById("main-content")?.focus(); }}>Đến nội dung chính</a>
+      {mobile ? <dialog ref={menu} className="mobile-navigation" aria-label="Điều hướng chính" onKeyDown={trapDialogFocus}>
+        <Button variant="ghost" className="menu-close" onClick={() => menu.current?.close()}>Đóng điều hướng ×</Button>
+        <Sidebar route={route} onNavigate={() => menu.current?.close()} />
+      </dialog> : <Sidebar route={route} />}
       <div className="app-main">
-        <Topbar route={route} />
-        <main className="app-content">{content}</main>
+        <Topbar route={route} onMenu={mobile ? () => menu.current?.showModal() : undefined} />
+        <main className="app-content" id="main-content" tabIndex={-1}>{content}</main>
       </div>
     </div>
   );

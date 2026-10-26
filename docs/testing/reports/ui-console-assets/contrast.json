@@ -1,0 +1,53 @@
+{
+  "technical": {
+    "--text-muted/--bg-base": 8.081739231943141,
+    "--text-muted/--bg-elevated": 6.541894744330466,
+    "--text-muted/--bg-surface": 7.538871852763207,
+    "--text-primary/--bg-base": 16.343307855037118,
+    "--text-primary/--bg-elevated": 13.229355302538716,
+    "--text-primary/--bg-surface": 15.245493579203128,
+    "--text-secondary/--bg-base": 9.88681561370794,
+    "--text-secondary/--bg-elevated": 8.003043063532418,
+    "--text-secondary/--bg-surface": 9.222697467030446,
+    "action": 9.759429201691637,
+    "boundary": 3.821129453328532,
+    "danger": 6.56531018685203,
+    "focus": 10.24029439804894,
+    "safe": 8.28684058233289,
+    "warning": 7.299281030501919
+  },
+  "graphite": {
+    "--text-muted/--bg-base": 8.618423968228536,
+    "--text-muted/--bg-elevated": 6.549927069237052,
+    "--text-muted/--bg-surface": 7.747382991054995,
+    "--text-primary/--bg-base": 15.820953163366895,
+    "--text-primary/--bg-elevated": 12.023786456535639,
+    "--text-primary/--bg-surface": 14.22197189323701,
+    "--text-secondary/--bg-base": 10.30050647280979,
+    "--text-secondary/--bg-elevated": 7.828295106138283,
+    "--text-secondary/--bg-surface": 9.259461931889767,
+    "action": 9.445541644773321,
+    "boundary": 4.190894640826003,
+    "danger": 5.928112468775284,
+    "focus": 9.365179716628946,
+    "safe": 7.427683424201932,
+    "warning": 6.537105252264035
+  },
+  "light": {
+    "--text-muted/--bg-base": 5.628308023831104,
+    "--text-muted/--bg-elevated": 5.2810637966476985,
+    "--text-muted/--bg-surface": 6.217664170891534,
+    "--text-primary/--bg-base": 12.794736360349857,
+    "--text-primary/--bg-elevated": 12.005351998183961,
+    "--text-primary/--bg-surface": 14.13450960873312,
+    "--text-secondary/--bg-base": 6.240865166864984,
+    "--text-secondary/--bg-elevated": 5.855828599454669,
+    "--text-secondary/--bg-surface": 6.894363915244356,
+    "action": 7.370536777520343,
+    "boundary": 3.4644030859075934,
+    "danger": 4.9853475674649905,
+    "focus": 7.370536777520343,
+    "safe": 4.996637384100069,
+    "warning": 5.270534925397066
+  }
+}
